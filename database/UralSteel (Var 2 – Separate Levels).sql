@@ -1,33 +1,22 @@
 /*
-   Что нужно создать:
-     - Индексы (какие? куда?)
-     - Валидация данных (e-mail; номер телефона | ещё что?)
-     - ? ? ? 
-     - Триггеры, функции, ограничения
-   
-   Вопрос: "что делать с массивом в настройках пользователя?"
-
-   Ввести иерархические должности с различными правами:
-     - Директор (самый главный дядя; не разбирается ни в чём, кроме как в заработке денег; занимает верхушку пищевой цепи)
-     - Главный аналитик (видит все цеха)
-     - Начальник аглоцеха (видит только свой *агломерационный* цех)
-     - Аналитик 1-ой линии аглоцеха (видит только свою *первую* линию)
-*/
-
--- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-/*
     = = = = = = =
         DROPs
     = = = = = = =
 */
 
-DROP TYPE IF EXISTS node_types CASCADE;
+-- ENUMs & DICTs
 DROP TYPE IF EXISTS alarm_types CASCADE;
-
+DROP TYPE IF EXISTS line_types CASCADE;
+DROP TABLE IF EXISTS aggregate_types CASCADE;
+DROP TABLE IF EXISTS actuator_types CASCADE;
 DROP TABLE IF EXISTS parameter_types CASCADE;
 DROP TABLE IF EXISTS job_titles CASCADE;
-DROP TABLE IF EXISTS nodes CASCADE;
+
+-- Tables
+DROP TABLE IF EXISTS shops CASCADE;
+DROP TABLE IF EXISTS lines CASCADE;
+DROP TABLE IF EXISTS aggregates CASCADE;
+DROP TABLE IF EXISTS actuators CASCADE;
 DROP TABLE IF EXISTS parameters CASCADE;
 DROP TABLE IF EXISTS parameter_data CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
@@ -35,12 +24,28 @@ DROP TABLE IF EXISTS user_settings CASCADE;
 DROP TABLE IF EXISTS monitoring_rules CASCADE;
 DROP TABLE IF EXISTS alerts CASCADE;
 
--- DROP FUNCTION EXAM_FUNC IF EXISTS CASCADE;
+-- Indexes
+DROP INDEX IF EXISTS idx_actuators_aggregate_id;
+DROP INDEX IF EXISTS idx_actuators_actuator_type_id;
+DROP INDEX IF EXISTS idx_monitoring_rules_user_id;
+DROP INDEX IF EXISTS idx_monitoring_rules_parameter_id;
+DROP INDEX IF EXISTS idx_alerts_rule_id;
+DROP INDEX IF EXISTS idx_alerts_parameter_data_id;
+DROP INDEX IF EXISTS idx_alerts_alert_timestamp;
+DROP INDEX IF EXISTS idx_users_job_titles_id;
 
--- DROP TRIGGER EXAM_TRIG IF EXISTS ON EXAM_FUNC;     
+-- Functions
+-- DROP FUNCTION IF EXISTS func CASCADE;
 
+-- Triggers
+-- DROP TRIGGER IF EXISTS trig ON exam_function;
+
+-- Roles
+DROP ROLE IF EXISTS app_user;
+
+-- Extensions
 DROP EXTENSION IF EXISTS timescaledb;
-DROP EXTENSION IF EXISTS pgcrypto;
+
 
 /*
     = = = = = = = = = =
@@ -48,8 +53,8 @@ DROP EXTENSION IF EXISTS pgcrypto;
     = = = = = = = = = =
 */
 
+
 CREATE EXTENSION IF NOT EXISTS timescaledb;
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -59,27 +64,43 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
     = = = = = = = = = = =
 */
 
--- П. node_types определяет уровни иерархии оборудования комбината: ['цех' → 'линия' → 'агрегат' → 'исполняющий механизм (узел/привод)']
-CREATE TYPE node_types AS ENUM ('Shop', 'Line', 'Aggregate', 'Actuator');
 
-
--- П. alarm_types предназначено для хранения типов тревог
+-- П. alarm_types предназначено для классификации типов уведомлений при возникшей тревоге (4)
 CREATE TYPE alarm_types AS ENUM ('siren', 'flash', 'vibration', 'notification');
 
 
--- Т. parameter_types содержит справочник типов параметров с единицами измерения (например, электрический ток [A]).
+-- П. line_types предназначено для хранения номеров линий (4)
+CREATE TYPE line_types AS ENUM ('Первая', 'Вторая', 'Третья', 'Четвёртая');
+
+
+-- Таблица aggregate_types содержит справочник типов агрегатов
+CREATE TABLE aggregate_types (
+    aggregate_type_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    aggregate_type_name VARCHAR(55) NOT NULL UNIQUE
+);
+
+
+-- Таблица actuator_types содержит справочник типов исполнительных механизмов
+CREATE TABLE actuator_types (
+    actuator_type_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    actuator_type_name VARCHAR(60) NOT NULL UNIQUE
+);
+
+
+-- Таблица parameter_types содержит справочник типов параметров с единицами измерения (например, электрический ток [A]).
 CREATE TABLE parameter_types (
     parameter_type_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    parameter_type_name VARCHAR(65) NOT NULL UNIQUE,
-    parameter_unit VARCHAR(30)
+    parameter_type_name VARCHAR(40) NOT NULL UNIQUE,
+    parameter_unit VARCHAR(20)
 );
 
 
--- Т. job_titles содержит справочник типов должностей
+-- Таблица job_titles содержит справочник типов должностей
 CREATE TABLE job_titles (
     job_title_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    job_title_name VARCHAR(80) NOT NULL UNIQUE
+    job_title_name VARCHAR(65) NOT NULL UNIQUE
 );
+
 
 /*
     = = = = = = = =
@@ -87,43 +108,74 @@ CREATE TABLE job_titles (
     = = = = = = = =
 */
 
--- Т. nodes содержит иерархическую структуру оборудования (цеха, линии, агрегаты, исполняющие механизмы (узлы/приводы)) с помощью рекурсивной модели
-CREATE TABLE nodes (
-    node_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    node_parent_id INT,
-    node_name VARCHAR(70) NOT NULL,
-    node_type node_types NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    
-    CONSTRAINT fk_nodes_nodes_parent FOREIGN KEY (node_parent_id) REFERENCES Nodes(node_id) ON DELETE SET NULL,
-    CONSTRAINT check_parent_self CHECK (node_id <> node_parent_id) -- Запрет самоссылки
+
+-- Таблица shops определяет цехи предприятия. [Уровень 1]. По факту это тоже справочник :).
+CREATE TABLE shops (
+    shop_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    shop_name VARCHAR(35) NOT NULL UNIQUE
 );
 
 
--- Т. parameters связывает типы параметров с исполняющими механизмами (узлами/приводами).
+-- Таблица lines определяет производственные линии внутри цехов. [Уровень 2].
+CREATE TABLE lines (
+    line_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    shop_id INT NOT NULL,
+    line_type line_types NOT NULL,
+
+    CONSTRAINT uq_shop_line_type UNIQUE (shop_id, line_type),
+    CONSTRAINT fk_lines_shops FOREIGN KEY (shop_id) REFERENCES shops(shop_id) ON DELETE CASCADE
+);
+
+
+-- Таблица aggregates определяет агрегаты на производственных линиях. [Уровень 3].
+CREATE TABLE aggregates (
+    aggregate_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    line_id INT NOT NULL,
+    aggregate_type_id INT NOT NULL,
+
+    CONSTRAINT uq_line_aggregate_type UNIQUE (line_id, aggregate_type_id),
+    CONSTRAINT fk_aggregates_lines FOREIGN KEY (line_id) REFERENCES lines(line_id) ON DELETE CASCADE,
+    CONSTRAINT fk_aggregates_aggregate_types FOREIGN KEY (aggregate_type_id) REFERENCES aggregate_types(aggregate_type_id) ON DELETE RESTRICT
+);
+
+
+-- Таблица actuators определяет исполнительные механизмы (узлы, приводы) внутри агрегатов. [Уровень 4].
+CREATE TABLE actuators (
+    actuator_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    aggregate_id INT NOT NULL,
+    actuator_type_id INT NOT NULL,
+
+    -- Здесь нету CONSTRAINT uq_aggregate_actuator_type UNIQUE, потому что в редких случаях у агрегата может быть 2 актуатора (2 двигателя, например)
+    CONSTRAINT fk_actuators_aggregates FOREIGN KEY (aggregate_id) REFERENCES aggregates(aggregate_id) ON DELETE CASCADE,
+    CONSTRAINT fk_actuators_actuator_types FOREIGN KEY (actuator_type_id) REFERENCES actuator_types(actuator_type_id) ON DELETE RESTRICT
+);
+
+
+-- Таблица parameters связывает типы параметров с исполнительными механизмами (узлами/приводами).
 CREATE TABLE parameters (
     parameter_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    node_id INT NOT NULL,
+    actuator_id INT NOT NULL,
     parameter_type_id INT NOT NULL,
-    
-    CONSTRAINT fk_parameters_nodes FOREIGN KEY (node_id) REFERENCES nodes(node_id) ON DELETE CASCADE,
+
+    CONSTRAINT uq_actuator_parameter_type UNIQUE (actuator_id, parameter_type_id),
+    CONSTRAINT fk_parameters_actuators FOREIGN KEY (actuator_id) REFERENCES actuators(actuator_id) ON DELETE CASCADE,
     CONSTRAINT fk_parameters_parameter_types FOREIGN KEY (parameter_type_id) REFERENCES parameter_types(parameter_type_id) ON DELETE RESTRICT
 );
 
 
--- Т. parameter_data содержит значения параметров, измеренных датчиками в определённое время (временные ряды данных). *ОДНА ИЗ КЛЮЧЕВЫХ*
+-- Таблица parameter_data содержит значения параметров, измеренных датчиками в определённое время (временные ряды данных).
 CREATE TABLE parameter_data (
-    data_id BIGINT GENERATED ALWAYS AS IDENTITY,
+    parameter_data_id BIGINT GENERATED ALWAYS AS IDENTITY,
     parameter_id INT NOT NULL,
     parameter_value FLOAT8 NOT NULL,
     data_timestamp TIMESTAMPTZ NOT NULL, -- Добавлять ли "DEFAULT CURRENT_TIMESTAMP" ? Это зависит от того, кто задаёт время при отправке данных: БД или датчики.
     
-    CONSTRAINT pk_parameter_data PRIMARY KEY (data_id, data_timestamp),
+    -- CONSTRAINT pk_parameter_data PRIMARY KEY (data_id, data_timestamp), -- > PK для оптимизации TimescaleDB создастся позже (после создания гипер-таблицы)
     CONSTRAINT fk_parameter_data_parameters FOREIGN KEY (parameter_id) REFERENCES parameters(parameter_id) ON DELETE CASCADE
 );
 
 
--- Т. users содержит информацию о пользователях
+-- Таблица users содержит информацию о пользователях
 CREATE TABLE users (
     user_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     job_titles_id INT,
@@ -132,36 +184,41 @@ CREATE TABLE users (
     middle_name VARCHAR(24),
     email VARCHAR(60) NOT NULL UNIQUE,
     phone CHAR(12) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
+    password_hash VARCHAR(228) NOT NULL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
 
+    CONSTRAINT check_email_mask CHECK (email ~* '^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$'),
+    CONSTRAINT check_phone_mask CHECK (phone ~ '^\+7\d{10}$'),
     CONSTRAINT fk_users_job_titles FOREIGN KEY (job_titles_id) REFERENCES job_titles(job_title_id) ON DELETE SET NULL
 );
 
 
--- Т. user_settings содержит настройки пользователей
+-- Таблица user_settings содержит настройки пользователей
 CREATE TABLE user_settings (
     user_id INT PRIMARY KEY,
-    theme VARCHAR(10) CHECK (theme IN ('light', 'dark')) DEFAULT 'light',
-    language VARCHAR(5) CHECK (language IN ('ru', 'en')) DEFAULT 'ru',
+    theme VARCHAR(10) DEFAULT 'light',
+    language VARCHAR(5) DEFAULT 'ru',
     alarm_types alarm_types[] DEFAULT '{notification}',
     is_rules_public BOOLEAN DEFAULT FALSE,
 
+    CONSTRAINT check_theme_option CHECK (theme IN ('light', 'dark')),
+    CONSTRAINT check_language_option CHECK (language IN ('ru', 'en')), 
     CONSTRAINT fk_user_settings_users FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
 
--- Т. monitoring_rules содержит правила мониторинга (условия для параметров)
+-- Таблица monitoring_rules содержит правила мониторинга (условия для параметров)
 CREATE TABLE monitoring_rules (
     rule_id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     user_id INT NOT NULL,
     parameter_id INT NOT NULL,
     rule_name VARCHAR(50),
     is_active BOOLEAN DEFAULT TRUE,
-    comparison_operator VARCHAR(2) CHECK (comparison_operator IN ('>', '<', '=', '>=', '<=')) NOT NULL,
+    comparison_operator VARCHAR(2) NOT NULL,
     threshold FLOAT8 NOT NULL, -- Порог срабатывания
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
 
+    CONSTRAINT check_comparison_operator_option CHECK (comparison_operator IN ('>', '<', '=', '>=', '<=')),
     CONSTRAINT fk_monitoring_rules_users FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
     CONSTRAINT fk_monitoring_rules_parameters FOREIGN KEY (parameter_id) REFERENCES parameters(parameter_id) ON DELETE CASCADE
 );
@@ -173,35 +230,36 @@ CREATE TABLE alerts (
     rule_id INT NOT NULL,
     parameter_data_id BIGINT NOT NULL,
     alert_timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    alert_message TEXT,
+    alert_message VARCHAR(150),
     is_read BOOLEAN DEFAULT FALSE,
 
     CONSTRAINT fk_alerts_monitoring_rules FOREIGN KEY (rule_id) REFERENCES monitoring_rules(rule_id) ON DELETE CASCADE
     -- CONSTRAINT fk_alerts_parameter_data FOREIGN KEY (parameter_data_id) REFERENCES parameter_data(data_id) ON DELETE CASCADE -- Убрано, т.к. TimeScaleDB не будет работать + можно через запросы "обойти" и "эмулировать" внешний ключ
 );
 
--- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 /*
     = = = = = = = = = =
-        Constraints
+        TimeScaleDb
     = = = = = = = = = =
 */
 
--- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-/*
-    = = = = = = = = =
-        Functions    
-    = = = = = = = = =
-*/
+  -- Преобразуем parameter_data в гипертаблицу TimescaleDB
+SELECT create_hypertable('parameter_data', 'data_timestamp');
 
+  -- Создаём оптимальный первичный ключ для гипертаблицы (идентификатор + время)
+ALTER TABLE parameter_data ADD CONSTRAINT pk_parameter_data PRIMARY KEY (parameter_id, data_timestamp);
 
-/*
-    = = = = = = = = =
-        Triggers    
-    = = = = = = = = =
-*/
+  -- Настраиваем сжатие данных старше 1 месяца
+ALTER TABLE parameter_data SET (
+    timescaledb.compress,
+    timescaledb.compress_segmentby = 'parameter_id'
+);
+SELECT add_compression_policy('parameter_data', INTERVAL '1 month');
+
+  -- (Опционально) Настраиваем удаление данных старше 6 месяцев
+SELECT add_retention_policy('parameter_data', INTERVAL '6 months');
 
 -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -212,46 +270,42 @@ CREATE TABLE alerts (
 */
 
 
+-- Для иерархии (Foreign Keys)
+CREATE INDEX IF NOT EXISTS idx_actuators_aggregate_id ON actuators (aggregate_id);
+CREATE INDEX IF NOT EXISTS idx_actuators_actuator_type_id ON actuators (actuator_type_id);
+
+-- Для monitoring_rules (Foreign Keys)
+CREATE INDEX IF NOT EXISTS idx_monitoring_rules_user_id ON monitoring_rules (user_id);
+CREATE INDEX IF NOT EXISTS idx_monitoring_rules_parameter_id ON monitoring_rules (parameter_id);
+
+-- Для alerts
+CREATE INDEX IF NOT EXISTS idx_alerts_rule_id ON alerts (rule_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_parameter_data_id ON alerts (parameter_data_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_alert_timestamp ON alerts (alert_timestamp);
+
+-- Для users (job_titles)
+CREATE INDEX IF NOT EXISTS idx_users_job_titles_id ON users (job_titles_id);
+
+-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 /*
-    = = = = = = = = = =
-        TimeScaleDb
-    = = = = = = = = = =
+    = = = = = = = = =
+        Functions    
+    = = = = = = = = =
 */
 
-  -- Преобразуем parameter_data в гипертаблицу TimescaleDB
-SELECT create_hypertable('parameter_data', 'data_timestamp');
 
-  -- Настраиваем сжатие данных старше 1 месяца
-ALTER TABLE parameter_data SET (
-    timescaledb.compress,
-    timescaledb.compress_segmentby = 'parameter_id'
-);
-SELECT add_compression_policy('parameter_data', INTERVAL '1 month');
+--
 
-  -- (Опционально) Настраиваем удаление данных старше 3 месяцев
--- SELECT add_retention_policy('ParameterData', INTERVAL '3 months');
 
-/*  Обход отсутствия FOREIGN KEY в Alerts
-SELECT 
-    a.alert_id,
-    a.alert_timestamp,
-    pd.parameter_value,
-    pd.data_timestamp,
-    p.parameter_type_id,
-    pt.parameter_type_name
-FROM 
-    alerts a
-JOIN 
-    monitoring_rules mr ON a.rule_id = mr.rule_id
-JOIN 
-    parameter_data pd ON mr.parameter_id = pd.parameter_id
-    AND pd.data_timestamp BETWEEN a.alert_timestamp - INTERVAL '5 seconds' AND a.alert_timestamp + INTERVAL '5 seconds'
-JOIN 
-    parameters p ON pd.parameter_id = p.parameter_id
-JOIN 
-    parameter_types pt ON p.parameter_type_id = pt.parameter_type_id;
+/*
+    = = = = = = = = =
+        Triggers    
+    = = = = = = = = =
 */
+
+
+--
 
 -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -261,44 +315,71 @@ JOIN
     = = = = = = = = = = = =
 */
 
+
+------------------------------------------------
 -- Заполнение таблицы job_titles
+------------------------------------------------
+
 INSERT INTO job_titles (job_title_name) VALUES
--- Производственные должности
-('Оператор прокатного стана'),
-('Оператор МНЛЗ'),
+('Директор'), -- (самый главный дядя; не разбирается ни в чём, кроме как в заработке денег; занимает верхушку пищевой цепи)
+('Главный аналитик'), -- (видит все цеха)
+('Начальник аглофабрики'), -- (видит только свой *агломерационный* цех)
+('Начальник ЭСПЦ'), -- (видит только свой *электросталеплавильный* цех)
+('Аналитик 1-ой линии аглофабрики'), -- (видит только свою *1-ую* линию *агломерационного* цеха)
+('Аналитик 2-ой линии аглофабрики'), -- (видит только свою *2-ую* линию *агломерационного* цеха)
+('Аналитик 1-ой линии ЭСПЦ'), -- (видит только свою *1-ую* линию *электросталеплавильного* цеха)
+('Аналитик 2-ой линии ЭСПЦ'); -- (видит только свою *2-ую* линию *электросталеплавильного* цеха)
 
--- IT и автоматизация
-('Инженер-программист АСУ ТП'),
-('Специалист по кибербезопасности промышленных систем'),
+------------------------------------------
+-- Заполнение таблицы shops
+------------------------------------------
 
--- Инженерно-технический персонал
-('Инженер-технолог'),
-('Специалист по цифровому моделированию процессов'),
+INSERT INTO shops (shop_name) VALUES
+('Агломерационный цех'), 
+('Доменный цех'), 
+('Коксохимический цех'), 
+('Кислородно-компрессорный цех'), 
+('Листопрокатный цех'), 
+('Теплоэлектроцентраль'), 
+('Трубопрокатный цех'), 
+('Фасонно-литейный цех'), 
+('Цех водоснабжения'), 
+('Электросталеплавильный цех');
 
--- Управленческие должности
-('Начальник аглоцеха'),
-('Руководитель проектов по автоматизации'),
-('Руководитель службы технического контроля'),
+----------------------------------------------------
+-- Заполнение таблицы aggregate_types
+----------------------------------------------------
 
--- Обслуживающий персонал
-('Наладчик автоматизированного оборудования'),
-('Техник по обслуживанию КИПиА'),
-('Специалист по калибровке измерительных систем'),
-('Сервисный инженер по промышленному оборудованию'),
+INSERT INTO aggregate_types (aggregate_type_name) VALUES
+('Агломашина'),
+('Конвейер'),
+('Окомкователь'),
+('Эксгаустер'),
+('ДСП'),
+('МНЛЗ');
 
--- Вспомогательные службы
-('Специалист по промышленной безопасности'),
+----------------------------------------------------
+-- Заполнение таблицы actuator_types
+----------------------------------------------------
 
--- Лаборатория
-('Инженер-исследователь');
+INSERT INTO actuator_types (actuator_type_name) VALUES
+('Кристаллизатор'),
+('Лента'),
+('Нагнетатель'),
+('Редуктор'),
+('Система смазки'),
+('Трансформатор'),
+('Электродвигатель постоянного тока'),
+('Электродвигатель переменного тока (3ф)');
 
-
+--------------------------------------------------
 -- Заполнение таблицы parameter_types
+--------------------------------------------------
+
 INSERT INTO parameter_types (parameter_type_name, parameter_unit) VALUES
 -- Электрические параметры
 ('Электрический ток', 'А'),
 ('Мощность', 'кВт'),
-
 -- Температурные параметры
 ('Температура обмотки', '℃'),
 ('Температура масла', '℃'), 
@@ -308,7 +389,6 @@ INSERT INTO parameter_types (parameter_type_name, parameter_unit) VALUES
 ('Температура шихты', '℃'),
 ('Температура входящей воды', '℃'),
 ('Температура отходящей воды', '℃'),
-
 -- Механические параметры
 ('Вибрация опорного подшипника', 'мм/с'),
 ('Скорость ленты', 'м/мин'),
@@ -318,289 +398,371 @@ INSERT INTO parameter_types (parameter_type_name, parameter_unit) VALUES
 ('Разрежение', 'мм. вод. ст.'),
 ('Давление масла в системе', 'кПа');
 
+-- ==========================================================================================
+--     Заполнение уровней иерархии: агрегаты, исполняющие механизмы, параметры
+-- ==========================================================================================
 
---------------------------------------------------------------------------------
--- Скрипт для заполнения таблицы 'nodes' иерархическими данными о структуре металлургического комбината (Цеха -> Линии -> Агрегаты -> Узлы).
--- Используется подход с CTE (Common Table Expressions) и RETURNING для атомарной вставки и получения ID родительских узлов в PostgreSQL.
---------------------------------------------------------------------------------
-
-WITH
--- ==== Уровень 1: Цехи (Shops) ====
-
-  -- Вставка цеха 'Аглоцех' и получение его ID
-  shop1 AS (
-    INSERT INTO nodes (node_parent_id, node_name, node_type)
-    VALUES (NULL, 'Аглоцех', 'Shop')
-    RETURNING node_id, node_name
-  ),
-
-  -- Вставка цеха 'ЭСПЦ' и получение его ID
-  shop2 AS (
-    INSERT INTO nodes (node_parent_id, node_name, node_type)
-    VALUES (NULL, 'ЭСПЦ', 'Shop')
-    RETURNING node_id, node_name
-  ),
-
--- ==== Уровень 2: Линии (Lines) ====
-
-  -- Вставка линий для 'Аглоцех' (используя ID из shop1)
-  lines_shop1 AS (
-    INSERT INTO nodes (node_parent_id, node_name, node_type)
-    SELECT node_id, 'Линия 1', 'Line'::node_types FROM shop1 WHERE node_name = 'Аглоцех'
-    UNION ALL
-    SELECT node_id, 'Линия 2', 'Line'::node_types FROM shop1 WHERE node_name = 'Аглоцех'
-    RETURNING node_id, node_name, node_parent_id
-  ),
-
-  -- Вставка линий для 'ЭСПЦ' (используя ID из shop2)
-  lines_shop2 AS (
-    INSERT INTO nodes (node_parent_id, node_name, node_type)
-    SELECT node_id, 'Линия 1', 'Line'::node_types FROM shop2 WHERE node_name = 'ЭСПЦ'
-    UNION ALL
-    SELECT node_id, 'Линия 2', 'Line'::node_types FROM shop2 WHERE node_name = 'ЭСПЦ'
-    RETURNING node_id, node_name, node_parent_id
-  ),
-
--- ==== Уровень 3: Агрегаты (Aggregates) ====
-
-  -- Вставка агрегатов для 'Аглоцех' -> 'Линия 1'
-  aggr_line1_1 AS (
-    INSERT INTO nodes (node_parent_id, node_name, node_type)
-    SELECT node_id, 'Окомкователь', 'Aggregate'::node_types FROM lines_shop1 WHERE node_name = 'Линия 1' AND node_parent_id = (SELECT node_id FROM shop1 WHERE node_name = 'Аглоцех')
-    UNION ALL
-    SELECT node_id, 'Конвейер', 'Aggregate'::node_types FROM lines_shop1 WHERE node_name = 'Линия 1' AND node_parent_id = (SELECT node_id FROM shop1 WHERE node_name = 'Аглоцех')
-    UNION ALL
-    SELECT node_id, 'Агломашина', 'Aggregate'::node_types FROM lines_shop1 WHERE node_name = 'Линия 1' AND node_parent_id = (SELECT node_id FROM shop1 WHERE node_name = 'Аглоцех')
-    UNION ALL
-    SELECT node_id, 'Эксгаустер', 'Aggregate'::node_types FROM lines_shop1 WHERE node_name = 'Линия 1' AND node_parent_id = (SELECT node_id FROM shop1 WHERE node_name = 'Аглоцех')
-    RETURNING node_id, node_name, node_parent_id
-  ),
-
-  -- Вставка агрегатов для 'Аглоцех' -> 'Линия 2'
-  aggr_line1_2 AS (
-    INSERT INTO nodes (node_parent_id, node_name, node_type)
-    SELECT node_id, 'Агломашина', 'Aggregate'::node_types FROM lines_shop1 WHERE node_name = 'Линия 2' AND node_parent_id = (SELECT node_id FROM shop1 WHERE node_name = 'Аглоцех')
-    UNION ALL
-    SELECT node_id, 'Эксгаустер', 'Aggregate'::node_types FROM lines_shop1 WHERE node_name = 'Линия 2' AND node_parent_id = (SELECT node_id FROM shop1 WHERE node_name = 'Аглоцех')
-    RETURNING node_id, node_name, node_parent_id
-  ),
-
-  -- Вставка агрегатов для 'ЭСПЦ' -> 'Линия 1'
-  aggr_line2_1 AS (
-    INSERT INTO nodes (node_parent_id, node_name, node_type)
-    SELECT node_id, 'МНЛЗ', 'Aggregate'::node_types FROM lines_shop2 WHERE node_name = 'Линия 1' AND node_parent_id = (SELECT node_id FROM shop2 WHERE node_name = 'ЭСПЦ')
-    RETURNING node_id, node_name, node_parent_id
-  ),
-
-  -- Вставка агрегатов для 'ЭСПЦ' -> 'Линия 2'
-  aggr_line2_2 AS (
-    INSERT INTO nodes (node_parent_id, node_name, node_type)
-    SELECT node_id, 'ДСП', 'Aggregate'::node_types FROM lines_shop2 WHERE node_name = 'Линия 2' AND node_parent_id = (SELECT node_id FROM shop2 WHERE node_name = 'ЭСПЦ')
-    RETURNING node_id, node_name, node_parent_id
-  )
-
--- ==== Уровень 4: Исполняющие механизмы (Actuators) ====
-
--- Финальная вставка актуаторов, ссылаясь на ID агрегатов из всех CTE уровня 3 ('aggr_*')
-INSERT INTO nodes (node_parent_id, node_name, node_type)
-
-  -- Актуаторы для 'Окомкователь' (Аглоцех -> Линия 1)
-  SELECT node_id, 'Эл.двигатель переменного тока (3ф)', 'Actuator'::node_types FROM aggr_line1_1 WHERE node_name = 'Окомкователь'
-  UNION ALL
-  SELECT node_id, 'Редуктор', 'Actuator'::node_types FROM aggr_line1_1 WHERE node_name = 'Окомкователь'
-  UNION ALL
-
-  -- Актуаторы для 'Конвейер' (Аглоцех -> Линия 1)
-  SELECT node_id, 'Эл.двигатель постоянного тока', 'Actuator'::node_types FROM aggr_line1_1 WHERE node_name = 'Конвейер'
-  UNION ALL
-
-  -- Актуаторы для 'Агломашина' (Аглоцех -> Линия 1)
-  SELECT node_id, 'Эл.двигатель постоянного тока', 'Actuator'::node_types FROM aggr_line1_1 WHERE node_name = 'Агломашина'
-  UNION ALL
-  SELECT node_id, 'Редуктор', 'Actuator'::node_types FROM aggr_line1_1 WHERE node_name = 'Агломашина'
-  UNION ALL
-  SELECT node_id, 'Лента', 'Actuator'::node_types FROM aggr_line1_1 WHERE node_name = 'Агломашина'
-  UNION ALL
-
-  -- Актуаторы для 'Эксгаустер' (Аглоцех -> Линия 1)
-  SELECT node_id, 'Эл.двигатель постоянного тока', 'Actuator'::node_types FROM aggr_line1_1 WHERE node_name = 'Эксгаустер'
-  UNION ALL
-  SELECT node_id, 'Нагнетатель', 'Actuator'::node_types FROM aggr_line1_1 WHERE node_name = 'Эксгаустер'
-  UNION ALL
-  SELECT node_id, 'Система смазки', 'Actuator'::node_types FROM aggr_line1_1 WHERE node_name = 'Эксгаустер'
-  UNION ALL
-
-  -- Актуаторы для 'Агломашина' (Аглоцех -> Линия 2)
-  SELECT node_id, 'Эл.двигатель постоянного тока', 'Actuator'::node_types FROM aggr_line1_2 WHERE node_name = 'Агломашина'
-  UNION ALL
-  SELECT node_id, 'Редуктор', 'Actuator'::node_types FROM aggr_line1_2 WHERE node_name = 'Агломашина'
-  UNION ALL
-  SELECT node_id, 'Лента', 'Actuator'::node_types FROM aggr_line1_2 WHERE node_name = 'Агломашина'
-  UNION ALL
-
-  -- Актуаторы для 'Эксгаустер' (Аглоцех -> Линия 2)
-  SELECT node_id, 'Эл.двигатель постоянного тока', 'Actuator'::node_types FROM aggr_line1_2 WHERE node_name = 'Эксгаустер'
-  UNION ALL
-  SELECT node_id, 'Нагнетатель', 'Actuator'::node_types FROM aggr_line1_2 WHERE node_name = 'Эксгаустер'
-  UNION ALL
-  SELECT node_id, 'Система смазки', 'Actuator'::node_types FROM aggr_line1_2 WHERE node_name = 'Эксгаустер'
-  UNION ALL
-  -- - - - - - - - - - - - - - - - - - - - - - -
-  -- Актуаторы для 'МНЛЗ' (ЭСПЦ -> Линия 1)
-  SELECT node_id, 'Кристаллизатор', 'Actuator'::node_types FROM aggr_line2_1 WHERE node_name = 'МНЛЗ'
-  UNION ALL
-
-  -- Актуаторы для 'ДСП' (ЭСПЦ -> Линия 2)
-  SELECT node_id, 'Трансформатор', 'Actuator'::node_types FROM aggr_line2_2 WHERE node_name = 'ДСП';
-
--- Конец скрипта
-
-
------------------------------------------------
- -- Скрипт для заполнения таблицы 'parameters'
------------------------------------------------
-WITH actuator_parameters(shop_name, line_name, aggregate_name, actuator_name, parameter_name) AS (
-    VALUES
-    -- | Агломерационный цех |
-            -- ---------- (Линия 1, Аглоцех) ----------
-        -- Окомкователь
-        ('Аглоцех', 'Линия 1', 'Окомкователь', 'Эл.двигатель переменного тока (3ф)', 'Электрический ток'),
-        ('Аглоцех', 'Линия 1', 'Окомкователь', 'Эл.двигатель переменного тока (3ф)', 'Температура обмотки'),
-        ('Аглоцех', 'Линия 1', 'Окомкователь', 'Редуктор', 'Температура масла'),
-        ('Аглоцех', 'Линия 1', 'Окомкователь', 'Редуктор', 'Уровень масла'),
-        
-        -- Конвейер
-        ('Аглоцех', 'Линия 1', 'Конвейер', 'Эл.двигатель постоянного тока', 'Электрический ток'),
-        ('Аглоцех', 'Линия 1', 'Конвейер', 'Эл.двигатель постоянного тока', 'Температура сердечника статора'),
-        
-        -- Агломашина
-        ('Аглоцех', 'Линия 1', 'Агломашина', 'Эл.двигатель постоянного тока', 'Электрический ток'),
-        ('Аглоцех', 'Линия 1', 'Агломашина', 'Эл.двигатель постоянного тока', 'Температура сердечника индуктора'),
-        ('Аглоцех', 'Линия 1', 'Агломашина', 'Редуктор', 'Температура масла'),
-        ('Аглоцех', 'Линия 1', 'Агломашина', 'Редуктор', 'Уровень масла'),
-        ('Аглоцех', 'Линия 1', 'Агломашина', 'Лента', 'Скорость ленты'),
-        ('Аглоцех', 'Линия 1', 'Агломашина', 'Лента', 'Высота слоя'),
-        ('Аглоцех', 'Линия 1', 'Агломашина', 'Лента', 'Температура шихты'),
-        
-        -- Эксгаустер
-        ('Аглоцех', 'Линия 1', 'Эксгаустер', 'Эл.двигатель постоянного тока', 'Электрический ток'),
-        ('Аглоцех', 'Линия 1', 'Эксгаустер', 'Эл.двигатель постоянного тока', 'Температура обмотки'),
-        ('Аглоцех', 'Линия 1', 'Эксгаустер', 'Эл.двигатель постоянного тока', 'Температура опорного подшипника'),
-        ('Аглоцех', 'Линия 1', 'Эксгаустер', 'Эл.двигатель постоянного тока', 'Вибрация опорного подшипника'),
-        ('Аглоцех', 'Линия 1', 'Эксгаустер', 'Нагнетатель', 'Разрежение'),
-        ('Аглоцех', 'Линия 1', 'Эксгаустер', 'Нагнетатель', 'Температура опорного подшипника'),
-        ('Аглоцех', 'Линия 1', 'Эксгаустер', 'Нагнетатель', 'Вибрация опорного подшипника'),
-        ('Аглоцех', 'Линия 1', 'Эксгаустер', 'Система смазки', 'Давление масла в системе'),
-            -- ---------- (Линия 2, Аглоцех) ----------
-        -- Агломашина
-        ('Аглоцех', 'Линия 2', 'Агломашина', 'Эл.двигатель постоянного тока', 'Электрический ток'),
-        ('Аглоцех', 'Линия 2', 'Агломашина', 'Эл.двигатель постоянного тока', 'Температура сердечника индуктора'),
-        ('Аглоцех', 'Линия 2', 'Агломашина', 'Редуктор', 'Температура масла'),
-        ('Аглоцех', 'Линия 2', 'Агломашина', 'Редуктор', 'Уровень масла'),
-        ('Аглоцех', 'Линия 2', 'Агломашина', 'Лента', 'Скорость ленты'),
-        ('Аглоцех', 'Линия 2', 'Агломашина', 'Лента', 'Высота слоя'),
-        ('Аглоцех', 'Линия 2', 'Агломашина', 'Лента', 'Температура шихты'),
-        
-        -- Эксгаустер
-        ('Аглоцех', 'Линия 2', 'Эксгаустер', 'Эл.двигатель постоянного тока', 'Электрический ток'),
-        ('Аглоцех', 'Линия 2', 'Эксгаустер', 'Эл.двигатель постоянного тока', 'Температура обмотки'),
-        ('Аглоцех', 'Линия 2', 'Эксгаустер', 'Эл.двигатель постоянного тока', 'Температура опорного подшипника'),
-        ('Аглоцех', 'Линия 2', 'Эксгаустер', 'Эл.двигатель постоянного тока', 'Вибрация опорного подшипника'),
-        ('Аглоцех', 'Линия 2', 'Эксгаустер', 'Нагнетатель', 'Разрежение'),
-        ('Аглоцех', 'Линия 2', 'Эксгаустер', 'Нагнетатель', 'Температура опорного подшипника'),
-        ('Аглоцех', 'Линия 2', 'Эксгаустер', 'Нагнетатель', 'Вибрация опорного подшипника'),
-        ('Аглоцех', 'Линия 2', 'Эксгаустер', 'Система смазки', 'Давление масла в системе'),
-
-    -- | Электросталеплавильный цех |
-            -- ---------- (Линия 1, ЭСПЦ) ----------        
-        -- МНЛЗ
-        ('ЭСПЦ', 'Линия 1', 'МНЛЗ', 'Кристаллизатор', 'Температура входящей воды'),
-        ('ЭСПЦ', 'Линия 1', 'МНЛЗ', 'Кристаллизатор', 'Температура отходящей воды'),
-        ('ЭСПЦ', 'Линия 1', 'МНЛЗ', 'Кристаллизатор', 'Уровень металла'),
-            -- ---------- (Линия 2, ЭСПЦ) ----------        
-        -- ДСП
-        ('ЭСПЦ', 'Линия 2', 'ДСП', 'Трансформатор', 'Мощность')
+WITH shop_ids AS (
+    SELECT shop_id, shop_name FROM shops
+), agg_type_ids AS (
+    SELECT aggregate_type_id, aggregate_type_name FROM aggregate_types
+), act_type_ids AS (
+    SELECT actuator_type_id, actuator_type_name FROM actuator_types
+), param_type_ids AS (
+    SELECT parameter_type_id, parameter_type_name FROM parameter_types
 ),
-
-resolved_ids AS (
-    SELECT 
-        a.node_id AS actuator_id,
+-- №1: Вставить Линии
+inserted_lines AS (
+    INSERT INTO lines (shop_id, line_type)
+    SELECT s.shop_id, lt.line_enum
+    FROM (VALUES
+        ('Агломерационный цех', 'Первая'::line_types),
+        ('Агломерационный цех', 'Вторая'::line_types),
+        ('Электросталеплавильный цех', 'Первая'::line_types),
+        ('Электросталеплавильный цех', 'Вторая'::line_types)
+    ) AS lt (shop_name, line_enum)
+    JOIN shop_ids s ON s.shop_name = lt.shop_name
+    ON CONFLICT (shop_id, line_type) DO UPDATE SET line_type = EXCLUDED.line_type -- Обновить в случае повторного запуска
+    RETURNING line_id, shop_id, line_type
+),
+-- №2: Вставить Агрегаты
+inserted_aggregates AS (
+    INSERT INTO aggregates (line_id, aggregate_type_id)
+    SELECT il.line_id, agt.aggregate_type_id
+    FROM (VALUES
+        ('Агломерационный цех', 'Первая'::line_types, 'Окомкователь'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Конвейер'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Агломашина'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Эксгаустер'),
+        ('Агломерационный цех', 'Вторая'::line_types, 'Агломашина'),
+        ('Агломерационный цех', 'Вторая'::line_types, 'Эксгаустер'),
+        ('Электросталеплавильный цех', 'Первая'::line_types, 'МНЛЗ'),
+        ('Электросталеплавильный цех', 'Вторая'::line_types, 'ДСП')
+    ) AS src (shop_name, line_enum, agg_type_name)
+    JOIN shop_ids ish ON ish.shop_name = src.shop_name
+    JOIN inserted_lines il ON il.shop_id = ish.shop_id AND il.line_type = src.line_enum
+    JOIN agg_type_ids agt ON agt.aggregate_type_name = src.agg_type_name
+    ON CONFLICT (line_id, aggregate_type_id) DO UPDATE SET aggregate_type_id = EXCLUDED.aggregate_type_id
+    RETURNING aggregate_id, line_id, aggregate_type_id
+),
+-- №3: Вставить Актуаторы
+inserted_actuators AS (
+    INSERT INTO actuators (aggregate_id, actuator_type_id)
+    SELECT ia.aggregate_id, actt.actuator_type_id
+    FROM (VALUES
+        ('Агломерационный цех', 'Первая'::line_types, 'Окомкователь', 'Электродвигатель переменного тока (3ф)'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Окомкователь', 'Редуктор'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Конвейер', 'Электродвигатель постоянного тока'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Агломашина', 'Электродвигатель постоянного тока'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Агломашина', 'Редуктор'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Агломашина', 'Лента'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Эксгаустер', 'Электродвигатель постоянного тока'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Эксгаустер', 'Нагнетатель'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Эксгаустер', 'Система смазки'),
+        ('Агломерационный цех', 'Вторая'::line_types, 'Агломашина', 'Электродвигатель постоянного тока'),
+        ('Агломерационный цех', 'Вторая'::line_types, 'Агломашина', 'Редуктор'),
+        ('Агломерационный цех', 'Вторая'::line_types, 'Агломашина', 'Лента'),
+        ('Агломерационный цех', 'Вторая'::line_types, 'Эксгаустер', 'Электродвигатель постоянного тока'),
+        ('Агломерационный цех', 'Вторая'::line_types, 'Эксгаустер', 'Нагнетатель'),
+        ('Агломерационный цех', 'Вторая'::line_types, 'Эксгаустер', 'Система смазки'),
+        ('Электросталеплавильный цех', 'Первая'::line_types, 'МНЛЗ', 'Кристаллизатор'),
+        ('Электросталеплавильный цех', 'Вторая'::line_types, 'ДСП', 'Трансформатор')
+    ) AS src (shop_name, line_enum, agg_type_name, act_type_name)
+    JOIN shop_ids ish ON ish.shop_name = src.shop_name
+    JOIN inserted_lines il ON il.shop_id = ish.shop_id AND il.line_type = src.line_enum
+    JOIN agg_type_ids agt ON agt.aggregate_type_name = src.agg_type_name
+    JOIN inserted_aggregates ia ON ia.line_id = il.line_id AND ia.aggregate_type_id = agt.aggregate_type_id
+    JOIN act_type_ids actt ON actt.actuator_type_name = src.act_type_name
+    RETURNING actuator_id, aggregate_id, actuator_type_id
+),
+-- №4: Определить данные для вставки параметров
+actuator_parameters_data(shop_name, line_enum, agg_type_name, act_type_name, param_type_name) AS (
+   VALUES
+        -- Аглоцех | 1-ая линия 
+        ('Агломерационный цех', 'Первая'::line_types, 'Окомкователь', 'Электродвигатель переменного тока (3ф)', 'Электрический ток'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Окомкователь', 'Электродвигатель переменного тока (3ф)', 'Температура обмотки'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Окомкователь', 'Редуктор', 'Температура масла'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Окомкователь', 'Редуктор', 'Уровень масла'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Конвейер', 'Электродвигатель постоянного тока', 'Электрический ток'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Конвейер', 'Электродвигатель постоянного тока', 'Температура сердечника статора'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Агломашина', 'Электродвигатель постоянного тока', 'Электрический ток'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Агломашина', 'Электродвигатель постоянного тока', 'Температура сердечника индуктора'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Агломашина', 'Редуктор', 'Температура масла'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Агломашина', 'Редуктор', 'Уровень масла'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Агломашина', 'Лента', 'Скорость ленты'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Агломашина', 'Лента', 'Высота слоя'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Агломашина', 'Лента', 'Температура шихты'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Эксгаустер', 'Электродвигатель постоянного тока', 'Электрический ток'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Эксгаустер', 'Электродвигатель постоянного тока', 'Температура обмотки'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Эксгаустер', 'Электродвигатель постоянного тока', 'Температура опорного подшипника'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Эксгаустер', 'Электродвигатель постоянного тока', 'Вибрация опорного подшипника'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Эксгаустер', 'Нагнетатель', 'Разрежение'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Эксгаустер', 'Нагнетатель', 'Температура опорного подшипника'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Эксгаустер', 'Нагнетатель', 'Вибрация опорного подшипника'),
+        ('Агломерационный цех', 'Первая'::line_types, 'Эксгаустер', 'Система смазки', 'Давление масла в системе'),
+        -- Аглоцех | 2-ая линия 
+        ('Агломерационный цех', 'Вторая'::line_types, 'Агломашина', 'Электродвигатель постоянного тока', 'Электрический ток'),
+        ('Агломерационный цех', 'Вторая'::line_types, 'Агломашина', 'Электродвигатель постоянного тока', 'Температура сердечника индуктора'),
+        ('Агломерационный цех', 'Вторая'::line_types, 'Агломашина', 'Редуктор', 'Температура масла'),
+        ('Агломерационный цех', 'Вторая'::line_types, 'Агломашина', 'Редуктор', 'Уровень масла'),
+        ('Агломерационный цех', 'Вторая'::line_types, 'Агломашина', 'Лента', 'Скорость ленты'),
+        ('Агломерационный цех', 'Вторая'::line_types, 'Агломашина', 'Лента', 'Высота слоя'),
+        ('Агломерационный цех', 'Вторая'::line_types, 'Агломашина', 'Лента', 'Температура шихты'),
+        ('Агломерационный цех', 'Вторая'::line_types, 'Эксгаустер', 'Электродвигатель постоянного тока', 'Электрический ток'),
+        ('Агломерационный цех', 'Вторая'::line_types, 'Эксгаустер', 'Электродвигатель постоянного тока', 'Температура обмотки'),
+        ('Агломерационный цех', 'Вторая'::line_types, 'Эксгаустер', 'Электродвигатель постоянного тока', 'Температура опорного подшипника'),
+        ('Агломерационный цех', 'Вторая'::line_types, 'Эксгаустер', 'Электродвигатель постоянного тока', 'Вибрация опорного подшипника'),
+        ('Агломерационный цех', 'Вторая'::line_types, 'Эксгаустер', 'Нагнетатель', 'Разрежение'),
+        ('Агломерационный цех', 'Вторая'::line_types, 'Эксгаустер', 'Нагнетатель', 'Температура опорного подшипника'),
+        ('Агломерационный цех', 'Вторая'::line_types, 'Эксгаустер', 'Нагнетатель', 'Вибрация опорного подшипника'),
+        ('Агломерационный цех', 'Вторая'::line_types, 'Эксгаустер', 'Система смазки', 'Давление масла в системе'),
+        -- ЭСПЦ
+        ('Электросталеплавильный цех', 'Первая'::line_types, 'МНЛЗ', 'Кристаллизатор', 'Температура входящей воды'),
+        ('Электросталеплавильный цех', 'Первая'::line_types, 'МНЛЗ', 'Кристаллизатор', 'Температура отходящей воды'),
+        ('Электросталеплавильный цех', 'Первая'::line_types, 'МНЛЗ', 'Кристаллизатор', 'Уровень металла'),
+        ('Электросталеплавильный цех', 'Вторая'::line_types, 'ДСП', 'Трансформатор', 'Мощность')
+),
+-- №5: Вставить Параметры
+resolved_parameter_links AS (
+    SELECT DISTINCT
+        iact.actuator_id,
         pt.parameter_type_id
-    FROM actuator_parameters ap
-    JOIN nodes shop ON shop.node_name = ap.shop_name AND shop.node_type = 'Shop'
-    JOIN nodes line ON line.node_name = ap.line_name AND line.node_type = 'Line' AND line.node_parent_id = shop.node_id
-    JOIN nodes agg ON agg.node_name = ap.aggregate_name AND agg.node_type = 'Aggregate' AND agg.node_parent_id = line.node_id
-    JOIN nodes a ON a.node_name = ap.actuator_name AND a.node_type = 'Actuator' AND a.node_parent_id = agg.node_id
-    JOIN parameter_types pt ON pt.parameter_type_name = ap.parameter_name
+    FROM actuator_parameters_data apd
+    JOIN shop_ids s ON s.shop_name = apd.shop_name
+    JOIN inserted_lines il ON il.shop_id = s.shop_id AND il.line_type = apd.line_enum
+    JOIN agg_type_ids agt ON agt.aggregate_type_name = apd.agg_type_name
+    JOIN inserted_aggregates iagg ON iagg.line_id = il.line_id AND iagg.aggregate_type_id = agt.aggregate_type_id
+    JOIN act_type_ids actt ON actt.actuator_type_name = apd.act_type_name
+    JOIN inserted_actuators iact ON iact.aggregate_id = iagg.aggregate_id AND iact.actuator_type_id = actt.actuator_type_id
+    JOIN param_type_ids pt ON pt.parameter_type_name = apd.param_type_name
 )
+-- Финальная вставка в таблицу parameters
+INSERT INTO parameters (actuator_id, parameter_type_id)
+SELECT actuator_id, parameter_type_id FROM resolved_parameter_links
+ON CONFLICT (actuator_id, parameter_type_id) DO NOTHING;
 
-INSERT INTO parameters (node_id, parameter_type_id)
-SELECT actuator_id, parameter_type_id FROM resolved_ids;
+-- ======================== КОНЕЦ СКРИПТА =================================
 
 /*
     = = = = = = = = = = = =
-        SELECT queries       
+        Roles & Grants       
     = = = = = = = = = = = =
 */
 
--- Иерархия (каждый параметр в отдельной строке)
-SELECT 
-    s.node_name AS "Цех",
-    l.node_name AS "Линия",
-    a.node_name AS "Агрегат",
-    act.node_name AS "Исполняющий механизм",
-    pt.parameter_type_name AS "Параметр",
-    pt.parameter_unit AS "Ед. измерения"
-FROM 
-    nodes act
-JOIN 
-    nodes a ON act.node_parent_id = a.node_id
-JOIN 
-    nodes l ON a.node_parent_id = l.node_id
-JOIN 
-    nodes s ON l.node_parent_id = s.node_id
-JOIN 
-    parameters p ON act.node_id = p.node_id
-JOIN 
-    parameter_types pt ON p.parameter_type_id = pt.parameter_type_id
-WHERE 
-    act.node_type = 'Actuator'
-ORDER BY 
-    s.node_name, 
-    l.node_name, 
-    a.node_name, 
-    act.node_name,
+
+CREATE ROLE app_user WITH LOGIN PASSWORD 'very_strong_password';
+GRANT CONNECT ON DATABASE "Ural_Steel" TO app_user;
+GRANT USAGE ON SCHEMA public TO app_user;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_user;
+GRANT SELECT ON TABLE
+    shops, aggregate_types, actuator_types, parameter_types, job_titles,
+    lines, aggregates, actuators, parameters,
+    parameter_data
+TO app_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
+    users, user_settings, monitoring_rules, alerts
+TO app_user;
+
+-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+/*
+    = = = = = = = = = = = = = = = = =
+        Comments on Schema Objects
+    = = = = = = = = = = = = = = = = =
+*/
+
+
+-- Типы данных (перечисления / ENUM)
+COMMENT ON TYPE alarm_types IS 'Перечисление возможных типов оповещений для пользователя.';
+COMMENT ON TYPE line_types IS 'Перечисление типов (или номеров) производственных линий.';
+
+
+-- Таблицы-справочники
+COMMENT ON TABLE aggregate_types IS 'Справочник типов агрегатов (например, "Агломашина", "Окомкователь").';
+    COMMENT ON COLUMN aggregate_types.aggregate_type_id IS 'Уникальный идентификатор типа агрегата.';
+    COMMENT ON COLUMN aggregate_types.aggregate_type_name IS 'Наименование типа агрегата.';
+
+COMMENT ON TABLE actuator_types IS 'Справочник типов исполнительных механизмов (например, "Эл.двигатель", "Редуктор").';
+    COMMENT ON COLUMN actuator_types.actuator_type_id IS 'Уникальный идентификатор типа актуатора.';
+    COMMENT ON COLUMN actuator_types.actuator_type_name IS 'Наименование типа актуатора.';
+
+COMMENT ON TABLE parameter_types IS 'Справочник типов измеряемых параметров оборудования с их единицами измерения.';
+    COMMENT ON COLUMN parameter_types.parameter_type_id IS 'Уникальный идентификатор типа параметра.';
+    COMMENT ON COLUMN parameter_types.parameter_type_name IS 'Наименование типа параметра (например, "Электрический ток").';
+    COMMENT ON COLUMN parameter_types.parameter_unit IS 'Единица измерения параметра (например, "А", "℃").';
+
+COMMENT ON TABLE job_titles IS 'Справочник должностей пользователей системы.';
+    COMMENT ON COLUMN job_titles.job_title_id IS 'Уникальный идентификатор должности.';
+    COMMENT ON COLUMN job_titles.job_title_name IS 'Наименование должности.';
+
+
+-- Таблицы иерархии оборудования
+COMMENT ON TABLE shops IS 'Таблица цехов предприятия. Выступает как справочник цехов. [Уровень 1 иерархии].';
+    COMMENT ON COLUMN shops.shop_id IS 'Уникальный идентификатор цеха.';
+    COMMENT ON COLUMN shops.shop_name IS 'Наименование цеха (уникальное).';
+
+COMMENT ON TABLE lines IS 'Таблица производственных линий внутри цехов. [Уровень 2 иерархии].';
+    COMMENT ON COLUMN lines.line_id IS 'Уникальный идентификатор линии.';
+    COMMENT ON COLUMN lines.shop_id IS 'Внешний ключ на цех (shops.shop_id).';
+    COMMENT ON COLUMN lines.line_type IS 'Тип (номер) линии из перечисления line_types.';
+    COMMENT ON CONSTRAINT uq_shop_line_type ON lines IS 'Гарантирует уникальность типа линии в пределах одного цеха.';
+
+COMMENT ON TABLE aggregates IS 'Таблица агрегатов (экземпляров оборудования) на производственных линиях. [Уровень 3 иерархии].';
+    COMMENT ON COLUMN aggregates.aggregate_id IS 'Уникальный идентификатор агрегата.';
+    COMMENT ON COLUMN aggregates.line_id IS 'Внешний ключ на линию (lines.line_id).';
+    COMMENT ON COLUMN aggregates.aggregate_type_id IS 'Внешний ключ на тип агрегата (aggregate_types.aggregate_type_id).';
+    COMMENT ON CONSTRAINT uq_line_aggregate_type ON aggregates IS 'Гарантирует уникальность типа агрегата в пределах одной линии.';
+
+COMMENT ON TABLE actuators IS 'Таблица актуаторов (экземпляров исполнительных механизмов) внутри агрегатов. [Уровень 4 иерархии].';
+    COMMENT ON COLUMN actuators.actuator_id IS 'Уникальный идентификатор актуатора.';
+    COMMENT ON COLUMN actuators.aggregate_id IS 'Внешний ключ на агрегат (aggregates.aggregate_id).';
+    COMMENT ON COLUMN actuators.actuator_type_id IS 'Внешний ключ на тип актуатора (actuator_types.actuator_type_id).';
+
+
+-- Таблица параметров
+COMMENT ON TABLE parameters IS 'Таблица, определяющая, какие типы параметров релевантны для каких актуаторов. Связь М:М.';
+    COMMENT ON COLUMN parameters.parameter_id IS 'Уникальный идентификатор конкретной связки "актуатор-тип параметра".';
+    COMMENT ON COLUMN parameters.actuator_id IS 'Внешний ключ на актуатор (actuators.actuator_id).';
+    COMMENT ON COLUMN parameters.parameter_type_id IS 'Внешний ключ на тип параметра (parameter_types.parameter_type_id).';
+    COMMENT ON CONSTRAINT uq_actuator_parameter_type ON parameters IS 'Гарантирует, что один тип параметра может быть связан с одним актуатором только один раз.';
+
+
+-- Таблица данных параметров
+COMMENT ON TABLE parameter_data IS 'Гипертаблица (TimescaleDB) для хранения временных рядов: значений параметров в определённое время.';
+    COMMENT ON COLUMN parameter_data.parameter_data_id IS 'Уникальный идентификатор записи данных (генерируется автоматически).';
+    COMMENT ON COLUMN parameter_data.parameter_id IS 'Внешний ключ на parameters.parameter_id. Часть первичного ключа гипертаблицы.';
+    COMMENT ON COLUMN parameter_data.parameter_value IS 'Измеренное значение параметра.';
+    COMMENT ON COLUMN parameter_data.data_timestamp IS 'Временная метка измерения. Часть первичного ключа гипертаблицы и ключ партиционирования.';
+
+
+-- Таблица пользователей
+COMMENT ON TABLE users IS 'Таблица пользователей системы мониторинга.';
+    COMMENT ON COLUMN users.user_id IS 'Уникальный идентификатор пользователя.';
+    COMMENT ON COLUMN users.job_titles_id IS 'Внешний ключ на должность пользователя (job_titles.job_title_id). Может быть NULL.';
+    COMMENT ON COLUMN users.first_name IS 'Имя пользователя.';
+    COMMENT ON COLUMN users.last_name IS 'Фамилия пользователя.';
+    COMMENT ON COLUMN users.middle_name IS 'Отчество пользователя (может отсутствовать).';
+    COMMENT ON COLUMN users.email IS 'Электронная почта пользователя (уникальная).';
+    COMMENT ON COLUMN users.phone IS 'Номер телефона пользователя (уникальный, формат +XXXXXXXXXXX).';
+    COMMENT ON COLUMN users.password_hash IS 'Хеш пароля пользователя (используется pgcrypto).';
+    COMMENT ON COLUMN users.created_at IS 'Временная метка создания учетной записи пользователя.';
+
+
+-- Таблица настроек пользователей
+COMMENT ON TABLE user_settings IS 'Таблица персональных настроек пользователя.';
+    COMMENT ON COLUMN user_settings.user_id IS 'Уникальный идентификатор пользователя (одновременно первичный и внешний ключ на users.user_id).';
+    COMMENT ON COLUMN user_settings.theme IS 'Выбранная тема интерфейса ("light" или "dark").';
+    COMMENT ON COLUMN user_settings.language IS 'Выбранный язык интерфейса ("ru" или "en").';
+    COMMENT ON COLUMN user_settings.alarm_types IS 'Массив выбранных пользователем типов оповещений (из ENUM alarm_types).';
+    COMMENT ON COLUMN user_settings.is_rules_public IS 'Флаг, указывающий, являются ли правила пользователя публичными.';
+
+
+-- Таблица правил
+COMMENT ON TABLE monitoring_rules IS 'Таблица правил мониторинга, созданных пользователями для параметров.';
+    COMMENT ON COLUMN monitoring_rules.rule_id IS 'Уникальный идентификатор правила.';
+    COMMENT ON COLUMN monitoring_rules.user_id IS 'Внешний ключ на пользователя, создавшего правило (users.user_id).';
+    COMMENT ON COLUMN monitoring_rules.parameter_id IS 'Внешний ключ на параметр (связку "актуатор-тип параметра"), для которого создано правило (parameters.parameter_id).';
+    COMMENT ON COLUMN monitoring_rules.rule_name IS 'Необязательное пользовательское название правила.';
+    COMMENT ON COLUMN monitoring_rules.is_active IS 'Флаг активности правила (включено/выключено).';
+    COMMENT ON COLUMN monitoring_rules.comparison_operator IS 'Оператор сравнения (">", "<", "=", ">=", "<=").';
+    COMMENT ON COLUMN monitoring_rules.threshold IS 'Пороговое значение для срабатывания правила.';
+    COMMENT ON COLUMN monitoring_rules.created_at IS 'Временная метка создания правила.';
+
+
+-- Таблица тревог
+COMMENT ON TABLE alerts IS 'Таблица журнала тревог (сработавших правил мониторинга).';
+    COMMENT ON COLUMN alerts.alert_id IS 'Уникальный идентификатор тревоги.';
+    COMMENT ON COLUMN alerts.rule_id IS 'Внешний ключ на правило, которое сработало (monitoring_rules.rule_id).';
+    COMMENT ON COLUMN alerts.parameter_data_id IS 'Идентификатор строки в таблице parameter_data (parameter_data.data_id), которая (предположительно) вызвала срабатывание правила.';
+    COMMENT ON COLUMN alerts.alert_timestamp IS 'Временная метка срабатывания тревоги (генерации записи).';
+    COMMENT ON COLUMN alerts.alert_message IS 'Текстовое сообщение тревоги (может генерироваться автоматически или быть частью правила).';
+    COMMENT ON COLUMN alerts.is_read IS 'Флаг, указывающий, прочитана ли тревога пользователем.';
+
+-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+/*
+    = = = = = = = = = = = =
+        SELECT queries
+    = = = = = = = = = = = =
+*/
+
+
+-- Полный список всех сущностей конкретного цеха с путями
+SELECT
+    s.shop_name AS "Цех",
+    l.line_type AS "Линия (Тип)",
+    agt.aggregate_type_name AS "Агрегат (Тип)",
+    actt.actuator_type_name AS "Актуатор (Тип)",
+    p.parameter_id AS "ID Параметра",
+    pt.parameter_type_name AS "Параметр (Тип)",
+    pt.parameter_unit AS "Ед. изм."
+FROM shops s
+LEFT JOIN lines l ON s.shop_id = l.shop_id
+LEFT JOIN aggregates agg ON l.line_id = agg.line_id
+LEFT JOIN aggregate_types agt ON agg.aggregate_type_id = agt.aggregate_type_id
+LEFT JOIN actuators act ON agg.aggregate_id = act.aggregate_id
+LEFT JOIN actuator_types actt ON act.actuator_type_id = actt.actuator_type_id
+LEFT JOIN parameters p ON act.actuator_id = p.actuator_id
+LEFT JOIN parameter_types pt ON p.parameter_type_id = pt.parameter_type_id
+WHERE s.shop_name = 'Агломерационный цех' -- Нужный цех
+ORDER BY
+    s.shop_name,
+    l.line_type,
+    agt.aggregate_type_name,
+    actt.actuator_type_name,
     pt.parameter_type_name;
 
 
--- Иерархия (все параметры в одну строку)
-SELECT 
-    s.node_name AS "Цех",
-    l.node_name AS "Линия",
-    a.node_name AS "Агрегат",
-    act.node_name AS "Исполняющий механизм",
-    STRING_AGG(pt.parameter_type_name || ' (' || pt.parameter_unit || ')', ', ' ORDER BY pt.parameter_type_name) AS "Параметры"
-FROM 
-    nodes act
-JOIN 
-    nodes a ON act.node_parent_id = a.node_id
-JOIN 
-    nodes l ON a.node_parent_id = l.node_id
-JOIN 
-    nodes s ON l.node_parent_id = s.node_id
-JOIN 
-    parameters p ON act.node_id = p.node_id
-JOIN 
-    parameter_types pt ON p.parameter_type_id = pt.parameter_type_id
-WHERE 
-    act.node_type = 'Actuator'
+-- Иерархия с количеством объектов
+SELECT
+    s.shop_name AS "Цех",
+    l.line_type::text AS "Линия",
+    COUNT(DISTINCT agg.aggregate_id) AS "Кол-во агрегатов",
+    COUNT(DISTINCT act.actuator_id) AS "Кол-во актуаторов",
+    COUNT(DISTINCT p.parameter_id) AS "Кол-во параметров"
+FROM
+    shops s
+JOIN
+    lines l ON s.shop_id = l.shop_id
+JOIN
+    aggregates agg ON l.line_id = agg.line_id
+JOIN
+    actuators act ON agg.aggregate_id = act.aggregate_id
+JOIN
+    parameters p ON act.actuator_id = p.actuator_id
 GROUP BY
-    s.node_name, 
-    l.node_name, 
-    a.node_name, 
-    act.node_name
-ORDER BY 
-    s.node_name, 
-    l.node_name, 
-    a.node_name, 
-    act.node_name;
+    s.shop_name, l.line_type
+ORDER BY
+    s.shop_name, l.line_type;
+
+
+-- Полная информация о тревоге (детали тревоги со значением параметра, которое её вызвало, и контекстом)
+SELECT
+    a.alert_id,
+    a.alert_timestamp,
+    a.alert_message,
+    pd.parameter_value AS value_at_trigger_or_nearby, -- Значение из строки, на которую указывает parameter_data_id
+    pd.data_timestamp AS data_timestamp_of_value,
+    r.rule_name,
+    p_types.parameter_type_name,
+    act.actuator_name,
+    agg.aggregate_name,
+    l.line_name,
+    s.shop_name
+FROM alerts a
+-- Получ. данные параметра по сохранённому ID строки из parameter_data
+LEFT JOIN parameter_data pd ON a.parameter_data_id = pd.data_id -- Использ. сохраненный ID
+-- Получ. инфу о правиле
+JOIN monitoring_rules r ON a.rule_id = r.rule_id
+-- Получ. инфу о параметре и его иерархии
+JOIN parameters p ON r.parameter_id = p.parameter_id
+JOIN parameter_types p_types ON p.parameter_type_id = p_types.parameter_type_id
+JOIN actuators act ON p.actuator_id = act.actuator_id
+JOIN aggregates agg ON act.aggregate_id = agg.aggregate_id
+JOIN lines l ON agg.line_id = l.line_id
+JOIN shops s ON l.shop_id = s.shop_id
+WHERE a.alert_id = <ваш_id_тревоги>; -- Условие для конкретной тревоги
+
+
+-- Конец файла
+SELECT 'Формирование базы данных окончено.'
