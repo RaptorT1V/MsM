@@ -1,347 +1,189 @@
 import psycopg2
-from time import sleep, time
-import random
 import threading
+import random
+import time
+from datetime import datetime, timezone
+import signal
+import sys
+
+# --- Параметры подключения к БД ---
+DB_NAME = "Ural_Steel"
+DB_USER = "admin"
+DB_PASSWORD = "admin"
+DB_HOST = "127.0.0.1"
+DB_PORT = "5432"
+
+# --- Параметры симуляции ---
+INITIAL_VALUE_MIN = 10.0
+INITIAL_VALUE_MAX = 100.0
+STEP_MIN = -1.0
+STEP_MAX = 1.0
+MIN_VALUE_CLAMP = 0.0
+MAX_VALUE_CLAMP = 10000.0
+DEFAULT_SLEEP_MIN = 1.0
+DEFAULT_SLEEP_MAX = 2.0
+
+# --- Управление потоками ---
+stop_event = threading.Event()
 
 
-# Подсоединение к базе данных
+def signal_handler(signum, frame):
+    """Обработчик Ctrl+C."""
+    print("\nCtrl+C! Завершаю потоки...")
+    stop_event.set()
+
+
+# --- Функции ---
 def connect_db():
-    conn = psycopg2.connect(
-        dbname="Ural_Steel",
-        user="admin",
-        password="admin",
-        host="127.0.0.1",
-        port="5432"
-    )
-    return conn
+    """Устанавливает НОВОЕ соединение с БД."""
+    try:
+        conn = psycopg2.connect(
+            dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD,
+            host=DB_HOST, port=DB_PORT
+        )
+        return conn
+    except psycopg2.OperationalError as e:
+        print(f"ОШИБКА: Не удалось подключиться к БД: {e}")
+        return None
 
 
-# Агломерационные машины
-def generate_first_sint_machine_data(conn):
-    cursor = conn.cursor()
-
-    layer_length = 400  # длина слоя постоянна?
-    charge_temperature = 40
-    speed = 4.6
-    rarefaction = 200
-
-    critical_charge_temperature = 200
-    critical_speed = 0
-    critical_rarefaction = 3000
-
-    while True:
-        charge_temperature += random.uniform(1.0, 10.0)
-        speed -= random.uniform(0.05, 0.15)
-        rarefaction += random.uniform(10, 150)
-
+def get_parameters(conn):
+    """Получает ID и типы параметров из БД."""
+    parameters = []
+    if not conn: return parameters
+    try:
+        cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO SinteringMachine_1 (layer_length, charge_temperature, speed, rarefaction)
-            VALUES (%s, %s, %s, %s);
-        """, (layer_length, charge_temperature, speed, rarefaction))
+            SELECT p.parameter_id, pt.parameter_type_name
+            FROM parameters p
+            JOIN parameter_types pt ON p.parameter_type_id = pt.parameter_type_id
+        """)
+        parameters = cursor.fetchall()
+        cursor.close()
+    except (Exception, psycopg2.Error) as error:
+        print(f"Ошибка при получении параметров: {error}")
+    return parameters
 
-        conn.commit()
-        sleep(1.5)
 
-        if charge_temperature >= critical_charge_temperature:
-            print(f"Температура в агломерационной машине №1 достигла критического значения: {charge_temperature}\n")
+def generate_initial_value(param_type):
+    """Генерирует начальное значение на основе типа параметра."""
+    param_type = param_type.lower()
+    if 'температура' in param_type:
+        return random.uniform(20, 100)
+    elif 'ток' in param_type:
+        return random.uniform(10, 50)
+    elif 'мощность' in param_type:
+        return random.uniform(1000, 5000)
+    elif 'скорость' in param_type:
+        return random.uniform(1, 10)
+    elif 'вибрация' in param_type:
+        return random.uniform(0, 3)
+    elif 'давление' in param_type:
+        return random.uniform(1, 5)
+    elif 'разрежение' in param_type:
+        return random.uniform(50, 200)
+    elif 'уровень' in param_type or 'высота' in param_type:
+        return random.uniform(10, 100)
+    else:
+        return random.uniform(0, 50)
+
+
+def generate_data_for_parameter(parameter_id, param_type):
+    """Задача потока: генерирует и вставляет данные для ОДНОГО параметра."""
+    print(f"[Поток {parameter_id} ({param_type})]: Запущен.")
+    value = generate_initial_value(param_type)
+    conn = None
+
+    while not stop_event.is_set():
+        try:
+            conn = connect_db()
+            if not conn:
+                print(f"[Поток {parameter_id}]: Ошибка подключения, пауза...")
+                time.sleep(5)
+                continue
+
+            cursor = conn.cursor()
+
+            # Генерирует новое значение
+            delta = random.uniform(STEP_MIN, STEP_MAX)
+            value += delta
+            value = max(MIN_VALUE_CLAMP, min(MAX_VALUE_CLAMP, value))
+
+            timestamp = datetime.now(timezone.utc)
+
+            # Вставляет данные
+            cursor.execute(
+                """
+                INSERT INTO parameter_data (parameter_id, parameter_value, data_timestamp)
+                VALUES (%s, %s, %s);
+                """,
+                (parameter_id, value, timestamp)
+            )
+            conn.commit()
+            cursor.close()
+
+        except KeyboardInterrupt:
+            break
+        except (Exception, psycopg2.Error) as error:
+            print(f"[Поток {parameter_id}]: Ошибка БД - {error}")
+            if conn:
+                try:
+                    conn.rollback()
+                except:
+                    pass
+        finally:
+            if conn:
+                conn.close()
+
+        # Пауза перед следующей итерацией (с проверкой stop_event)
+        sleep_duration = random.uniform(DEFAULT_SLEEP_MIN, DEFAULT_SLEEP_MAX)
+        if stop_event.wait(timeout=sleep_duration):
             break
 
-        if speed <= critical_speed:
-            print(f"Скорость агломерационной машины №1 достигла критического значения: {speed}\n")
-            break
+    print(f"[Поток {parameter_id}]: Завершен.")
 
-        if rarefaction >= critical_rarefaction:
-            print(f"Разрежение в агломерационной машине №1 достигло критического значения: {rarefaction}\n")
-            break
 
-
-def generate_second_sint_machine_data(conn):
-    cursor = conn.cursor()
-
-    layer_length = 400  # длина слоя постоянна?
-    charge_temperature = 20
-    speed = 5
-    rarefaction = 100
-
-    critical_charge_temperature = 200
-    critical_speed = 0
-    critical_rarefaction = 3000
-
-    while True:
-        charge_temperature += random.uniform(1.0, 10.0)
-        speed -= random.uniform(0.05, 0.15)
-        rarefaction += random.uniform(10, 150)
-
-        cursor.execute("""
-            INSERT INTO SinteringMachine_2 (layer_length, charge_temperature, speed, rarefaction)
-            VALUES (%s, %s, %s, %s);
-        """, (layer_length, charge_temperature, speed, rarefaction))
-
-        conn.commit()
-        sleep(1.5)
-
-        if charge_temperature >= critical_charge_temperature:
-            print(f"Температура в агломерационной машине №2 достигла критического значения: {charge_temperature}\n")
-            break
-
-        if speed <= critical_speed:
-            print(f"Скорость агломерационной машины №2 достигла критического значения: {speed}\n")
-            break
-
-        if rarefaction >= critical_rarefaction:
-            print(f"Разрежение в агломерационной машине №2 достигло критического значения: {rarefaction}\n")
-            break
-
-
-# Доменные печи
-def generate_first_blast_furnace_data(conn):
-    cursor = conn.cursor()
-
-    blast_flow_rate = 1000
-    blast_pressure = 1
-    natural_gas_flow_rate = 7000
-
-    critical_blast_flow_rate = 10000
-    critical_blast_pressure = 10
-    critical_natural_gas_flow_rate = 35000
-
-    while True:
-        blast_flow_rate += random.uniform(100, 500)
-        blast_pressure += random.uniform(0.1, 0.5)
-        natural_gas_flow_rate += random.uniform(300, 1200)
-
-        cursor.execute("""
-            INSERT INTO blastfurnace_1 (blast_flow_rate, blast_pressure, natural_gas_flow_rate)
-            VALUES (%s, %s, %s);
-        """, (blast_flow_rate, blast_pressure, natural_gas_flow_rate))
-
-        conn.commit()
-        sleep(1.5)
-
-        if blast_flow_rate >= critical_blast_flow_rate:
-            print(f"Объёмный расход дутья в доменной печи №1 достиг критического значения: {blast_flow_rate}\n")
-            break
-
-        if blast_pressure >= critical_blast_pressure:
-            print(f"Давление дутья в доменной печи №1 достигло критического значения: {blast_pressure}\n")
-            break
-
-        if natural_gas_flow_rate >= critical_natural_gas_flow_rate:
-            print(f"Объёмный расход природного газа в доменной печи №1 достиг критического значения: {natural_gas_flow_rate}\n")
-            break
-
-
-def generate_second_blast_furnace_data(conn):
-    cursor = conn.cursor()
-
-    blast_flow_rate = 1500
-    blast_pressure = 1.5
-    natural_gas_flow_rate = 6000
-
-    critical_blast_flow_rate = 10000
-    critical_blast_pressure = 10
-    critical_natural_gas_flow_rate = 35000
-
-    while True:
-        blast_flow_rate += random.uniform(100, 500)
-        blast_pressure += random.uniform(0.1, 0.5)
-        natural_gas_flow_rate += random.uniform(300, 1200)
-
-        cursor.execute("""
-            INSERT INTO BlastFurnace_2 (blast_flow_rate, blast_pressure, natural_gas_flow_rate)
-            VALUES (%s, %s, %s);
-        """, (blast_flow_rate, blast_pressure, natural_gas_flow_rate))
-
-        conn.commit()
-        sleep(1.5)
-
-        if blast_flow_rate >= critical_blast_flow_rate:
-            print(f"Объёмный расход дутья в доменной печи №2 достиг критического значения: {blast_flow_rate}\n")
-            break
-
-        if blast_pressure >= critical_blast_pressure:
-            print(f"Давление дутья в доменной печи №2 достигло критического значения: {blast_pressure}\n")
-            break
-
-        if natural_gas_flow_rate >= critical_natural_gas_flow_rate:
-            print(f"Объёмный расход природного газа в доменной печи №2 достиг критического значения: {natural_gas_flow_rate}\n")
-            break
-
-
-# Гибкие модульные печи
-def generate_first_flexible_modular_furnace_data(conn):
-    cursor = conn.cursor()
-
-    argon_flow_rate = 500
-    oxygen_flow_rate = 1000
-    power = 20000
-
-    critical_argon_flow_rate = 5000
-    critical_oxygen_flow_rate = 25000
-    critical_power = 110500
-
-    while True:
-        argon_flow_rate += random.uniform(50, 250)
-        oxygen_flow_rate += random.uniform(200, 1100)
-        power += random.uniform(1000, 5000)
-
-        cursor.execute("""
-            INSERT INTO FlexibleModularFurnace_1 (argon_flow_rate, oxygen_flow_rate, power)
-            VALUES (%s, %s, %s);
-        """, (argon_flow_rate, oxygen_flow_rate, power))
-
-        conn.commit()
-        sleep(1.5)
-
-        if argon_flow_rate >= critical_argon_flow_rate:
-            print(f"Объёмный расход аргона в гибкой модульной печи №1 достиг критического значения: {argon_flow_rate}\n")
-            break
-
-        if oxygen_flow_rate >= critical_oxygen_flow_rate:
-            print(f"Объёмный расход кислорода в гибкой модульной печи №1 достиг критического значения: {oxygen_flow_rate}\n")
-            break
-
-        if power >= critical_power:
-            print(f"Мощность гибкой модульной печи №1 достигла критического значения: {power}\n")
-            break
-
-
-def generate_second_flexible_modular_furnace_data(conn):
-    cursor = conn.cursor()
-
-    argon_flow_rate = 350
-    oxygen_flow_rate = 850
-    power = 18000
-
-    critical_argon_flow_rate = 5000
-    critical_oxygen_flow_rate = 25000
-    critical_power = 110500
-
-    while True:
-        argon_flow_rate += random.uniform(50, 250)
-        oxygen_flow_rate += random.uniform(200, 1100)
-        power += random.uniform(1000, 5000)
-
-        cursor.execute("""
-            INSERT INTO FlexibleModularFurnace_2 (argon_flow_rate, oxygen_flow_rate, power)
-            VALUES (%s, %s, %s);
-        """, (argon_flow_rate, oxygen_flow_rate, power))
-
-        conn.commit()
-        sleep(1.5)
-
-        if argon_flow_rate >= critical_argon_flow_rate:
-            print(f"Объёмный расход аргона в гибкой модульной печи №2 достиг критического значения: {argon_flow_rate}\n")
-            break
-
-        if oxygen_flow_rate >= critical_oxygen_flow_rate:
-            print(f"Объёмный расход кислорода в гибкой модульной печи №2 достиг критического значения: {oxygen_flow_rate}\n")
-            break
-
-        if power >= critical_power:
-            print(f"Мощность гибкой модульной печи №2 достигла критического значения: {power}\n")
-            break
-
-
-# Паровые котлы среднего давления
-def generate_first_medium_pressure_boiler_data(conn):
-    cursor = conn.cursor()
-
-    temperature = 100
-    pressure = 1.0
-    steam_output = 50
-
-    critical_temperature = 2000
-    critical_pressure = 20
-    critical_steam_output = 1000
-
-    while True:
-        temperature += random.uniform(20, 100)
-        pressure += random.uniform(0.1, 1)
-        steam_output += random.uniform(10, 50)
-
-        cursor.execute("""
-            INSERT INTO MediumPressureBoiler_1 (temperature, pressure, steam_output)
-            VALUES (%s, %s, %s);
-        """, (temperature, pressure, steam_output))
-
-        conn.commit()
-        sleep(1.5)
-
-        if temperature >= critical_temperature:
-            print(f"Температура в паровом котле среднего давления №1 достигла критического значения: {temperature}\n")
-            break
-
-        if pressure >= critical_pressure:
-            print(f"Давление в паровом котле среднего давления №1 достигло критического значения: {pressure}\n")
-            break
-
-        if steam_output >= critical_steam_output:
-            print(f"Выработка пара в паровом котле среднего давления №1 достигла критического значения: {steam_output}\n")
-            break
-
-
-def generate_second_medium_pressure_boiler_data(conn):
-    cursor = conn.cursor()
-
-    temperature = 150
-    pressure = 1.5
-    steam_output = 80
-
-    critical_temperature = 2000
-    critical_pressure = 20
-    critical_steam_output = 1000
-
-    while True:
-        temperature += random.uniform(10, 100)
-        pressure += random.uniform(0.1, 1)
-        steam_output += random.uniform(10, 50)
-
-        cursor.execute("""
-            INSERT INTO MediumPressureBoiler_2 (temperature, pressure, steam_output)
-            VALUES (%s, %s, %s);
-        """, (temperature, pressure, steam_output))
-
-        conn.commit()
-        sleep(1.5)
-
-        if temperature >= critical_temperature:
-            print(f"Температура в паровом котле среднего давления №2 достигла критического значения: {temperature}\n")
-            break
-
-        if pressure >= critical_pressure:
-            print(f"Давление в паровом котле среднего давления №2 достигло критического значения: {pressure}\n")
-            break
-
-        if steam_output >= critical_steam_output:
-            print(f"Выработка пара в паровом котле среднего давления №2 достигла критического значения: {steam_output}\n")
-            break
-
-
+# --- Основная функция ---
 def main():
-    conn = connect_db()
+    # Устанавливаем обработчики сигналов
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
 
-    threads = [
-        threading.Thread(target=generate_first_sint_machine_data, args=(conn,)),  # --
-        threading.Thread(target=generate_second_sint_machine_data, args=(conn,)),
-        threading.Thread(target=generate_first_blast_furnace_data, args=(conn,)),  # --
-        threading.Thread(target=generate_second_blast_furnace_data, args=(conn,)),
-        threading.Thread(target=generate_first_flexible_modular_furnace_data, args=(conn,)),  # --
-        threading.Thread(target=generate_second_flexible_modular_furnace_data, args=(conn,)),
-        threading.Thread(target=generate_first_medium_pressure_boiler_data, args=(conn,)),  # --
-        threading.Thread(target=generate_second_medium_pressure_boiler_data, args=(conn,))
-    ]
+    initial_conn = connect_db()
+    if not initial_conn:
+        sys.exit("Выход: Не удалось установить начальное соединение с БД.")
 
-    for thread in threads:
+    parameters_to_simulate = get_parameters(initial_conn)
+    initial_conn.close()  # Закрываем соединение после получения списка
+
+    if not parameters_to_simulate:
+        print("В базе данных не найдено параметров для симуляции. Выход.")
+        sys.exit()
+
+    print(f"Найдено {len(parameters_to_simulate)} параметров. Запускаю потоки симуляции...")
+    print("Нажмите Ctrl+C для остановки.")
+
+    threads = []
+    for p_id, p_type in parameters_to_simulate:
+        thread = threading.Thread(
+            target=generate_data_for_parameter,
+            args=(p_id, p_type),
+            daemon=True  # Потоки завершатся, если основной поток завершится
+        )
+        threads.append(thread)
         thread.start()
+        time.sleep(0.01) # Небольшая задержка старта
 
-    for thread in threads:
-        thread.join()
+    # Главный поток просто ждет сигнала остановки
+    while not stop_event.is_set():
+        try:
+            time.sleep(1)  # Можно проверять состояние потоков, если нужно
+        except KeyboardInterrupt:
+            signal_handler(None, None)  # Обрабатываем Ctrl+C и в главном цикле
+
+    print("Основной поток: получен сигнал остановки.")
+    print("Симуляция завершена.")
 
 
 if __name__ == "__main__":
-    start_time = time()  # время начала выполнения программы
     main()
-    end_time = time()  # время конца выполнения программы
-    print("Время выполнения программы: ", end_time - start_time, "\n Получилось в результате вычитания ", end_time,
-          " -", start_time)
