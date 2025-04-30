@@ -1,28 +1,28 @@
-import datetime
-from typing import Optional, List
-
 from app.db.base_class import Base
-from sqlalchemy import (Integer, String, func, ForeignKey, CHAR, TIMESTAMP, CheckConstraint)
+from sqlalchemy import CHAR, TIMESTAMP, Integer, String, ForeignKey, CheckConstraint, func, Identity
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import Optional, List
+import datetime
 
-
+# --- Справочник типов должностей ---
 class JobTitle(Base):
     __tablename__ = "job_titles"
 
-    job_title_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    job_title_id: Mapped[int] = mapped_column(Integer, Identity(always=True), primary_key=True)
     job_title_name: Mapped[str] = mapped_column(String(65), nullable=False, unique=True)
 
-    users: Mapped[List["User"]] = relationship(back_populates="job_title")
+    users: Mapped[List["User"]] = relationship(back_populates="job_title")  # 1:N → Одну должность могут иметь несколько рабочих
 
     def __repr__(self):
         return f"<JobTitle(id={self.job_title_id}, name='{self.job_title_name}')>"
 
 
+# --- Таблица, содержащая информацию о пользователях ---
 class User(Base):
     __tablename__ = "users"
 
-    user_id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    job_titles_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("job_titles.job_title_id", ondelete="SET NULL"), index=True)
+    user_id: Mapped[int] = mapped_column(Integer, Identity(always=True), primary_key=True)
+    job_titles_id: Mapped[int] = mapped_column(Integer, ForeignKey("job_titles.job_title_id", ondelete="RESTRICT"), nullable=False, index=True)
     first_name: Mapped[str] = mapped_column(String(26), nullable=False)
     last_name: Mapped[str] = mapped_column(String(36), nullable=False)
     middle_name: Mapped[Optional[str]] = mapped_column(String(24))
@@ -36,7 +36,9 @@ class User(Base):
         CheckConstraint("phone ~ '^\+7\d{10}$'", name='phone_format'),
     )
 
-    job_title: Mapped[Optional["JobTitle"]] = relationship(back_populates="users")
+    job_title: Mapped["JobTitle"] = relationship(back_populates="users")  # N:1 → Несколько рабочих могут иметь одну и ту же должность (но один рабочий может иметь только одну должность)
+    rules: Mapped[List["MonitoringRule"]] = relationship(back_populates="user", cascade="all, delete")  # 1:N → Один пользователь может иметь несколько правил
+    settings: Mapped["UserSetting"] = relationship(back_populates="user", cascade="all, delete-orphan")  # 1:1 → Одному пользователю соответствуют только одни настройки
 
     def __repr__(self):
         return f"<User(id={self.user_id}, email='{self.email}')>"

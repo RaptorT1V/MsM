@@ -12,6 +12,6 @@ POSTGRES_ALEMBIC_NAMING_CONVENTION = {
 }
 
 
-# Базовый класс для всех моделей SQLAlchemy
+# --- Базовый класс для всех моделей SQLAlchemy ---
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=POSTGRES_ALEMBIC_NAMING_CONVENTION)

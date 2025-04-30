@@ -198,9 +198,9 @@ CREATE TABLE parameter_data (
     parameter_data_id BIGINT GENERATED ALWAYS AS IDENTITY,
     parameter_id INT NOT NULL,
     parameter_value FLOAT8 NOT NULL,
-    data_timestamp TIMESTAMPTZ NOT NULL, -- Добавлять ли "DEFAULT CURRENT_TIMESTAMP" ? Это зависит от того, кто задаёт время при отправке данных: БД или датчики.
+    data_timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     
-    -- CONSTRAINT pk_parameter_data PRIMARY KEY (data_id, data_timestamp), -- > PK для оптимизации TimescaleDB создастся позже (после создания гипер-таблицы)
+    -- CONSTRAINT pk_parameter_data PRIMARY KEY (parameter_data_id, data_timestamp), -- > PK для оптимизации TimescaleDB создастся позже (после создания гипер-таблицы)
     CONSTRAINT fk_parameter_data_parameter_id FOREIGN KEY (parameter_id) REFERENCES parameters(parameter_id) ON DELETE CASCADE
 );
 
@@ -208,7 +208,7 @@ CREATE TABLE parameter_data (
 -- Таблица users содержит информацию о пользователях
 CREATE TABLE users (
     user_id INT GENERATED ALWAYS AS IDENTITY,
-    job_titles_id INT,
+    job_titles_id INT NOT NULL,
     first_name VARCHAR(26) NOT NULL,
     last_name VARCHAR(36) NOT NULL,
     middle_name VARCHAR(24),
@@ -222,7 +222,7 @@ CREATE TABLE users (
     CONSTRAINT uq_users_phone UNIQUE (phone),
     CONSTRAINT ck_users_email_format CHECK (email ~* '^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$'),
     CONSTRAINT ck_users_phone_format CHECK (phone ~ '^\+7\d{10}$'),
-    CONSTRAINT fk_users_job_titles_id FOREIGN KEY (job_titles_id) REFERENCES job_titles(job_title_id) ON DELETE SET NULL
+    CONSTRAINT fk_users_job_titles_id FOREIGN KEY (job_titles_id) REFERENCES job_titles(job_title_id) ON DELETE RESTRICT
 );
 
 

@@ -1,6 +1,7 @@
 import enum
 
 
+# --- Типы уведомлений при возникшей тревоге ---
 class AlarmTypesEnum(str, enum.Enum):
     SIREN = 'siren'
     FLASH = 'flash'
@@ -8,6 +9,7 @@ class AlarmTypesEnum(str, enum.Enum):
     NOTIFICATION = 'notification'
 
 
+# --- Номера линий ---
 class LineTypesEnum(str, enum.Enum):
     FIRST = 'Первая'
     SECOND = 'Вторая'
