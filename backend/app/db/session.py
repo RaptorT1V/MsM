@@ -1,16 +1,11 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from dotenv import load_dotenv
-from pathlib import Path
 from typing import Generator
 import os
 
 # --- Загрузка переменных окружения ---
-env_path = Path(__file__).resolve().parent.parent.parent / '.env'
-print(f"Loading .env file from: {env_path}")
-if not os.path.exists(env_path):
-    print(f"ОШИБКА: Файл .env не найден по пути {env_path}. Используются значения по умолчанию в коде (если они есть, конечно =).")
-load_dotenv(dotenv_path=env_path)
+load_dotenv()
 
 DB_NAME = os.getenv("DB_NAME", "Ural_Steel")
 DB_USER = os.getenv("DB_USER", "admin")
