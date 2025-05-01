@@ -1,14 +1,9 @@
 import os, psycopg2, random, signal, sys, time, threading
 from datetime import datetime, timezone
 from dotenv import load_dotenv
-from pathlib import Path
 
 # --- Загрузка .env ---
-env_path = Path(__file__).resolve().parent.parent / '.env'
-print(f"[Simulator] Loading .env file from: {env_path}")
-if not os.path.exists(env_path):
-    print(f"[Simulator] ПРЕДУПРЕЖДЕНИЕ: Файл .env не найден по пути {env_path}. Используются значения по умолчанию в коде (если они есть, конечно =).")
-load_dotenv(dotenv_path=env_path)
+load_dotenv()
 
 # --- Параметры подключения к БД (читаем из .env) ---
 DB_NAME = os.getenv("DB_NAME", "Ural_Steel")
