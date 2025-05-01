@@ -1,17 +1,21 @@
-import psycopg2
-import threading
-import random
-import time
+import os, psycopg2, random, signal, sys, time, threading
 from datetime import datetime, timezone
-import signal
-import sys
+from dotenv import load_dotenv
+from pathlib import Path
 
-# --- Параметры подключения к БД ---
-DB_NAME = "Ural_Steel"
-DB_USER = "admin"
-DB_PASSWORD = "admin"
-DB_HOST = "127.0.0.1"
-DB_PORT = "5432"
+# --- Загрузка .env ---
+env_path = Path(__file__).resolve().parent.parent / '.env'
+print(f"[Simulator] Loading .env file from: {env_path}")
+if not os.path.exists(env_path):
+    print(f"[Simulator] ПРЕДУПРЕЖДЕНИЕ: Файл .env не найден по пути {env_path}. Используются значения по умолчанию в коде (если они есть, конечно =).")
+load_dotenv(dotenv_path=env_path)
+
+# --- Параметры подключения к БД (читаем из .env) ---
+DB_NAME = os.getenv("DB_NAME", "Ural_Steel")
+DB_USER = os.getenv("DB_USER", "admin")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "admin")
+DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
+DB_PORT = os.getenv("DB_PORT", "5432")
 
 # --- Параметры симуляции ---
 INITIAL_VALUE_MIN = 10.0
@@ -27,15 +31,15 @@ DEFAULT_SLEEP_MAX = 2.0
 stop_event = threading.Event()
 
 
+# --- Функции ---
 def signal_handler(signum, frame):
-    """Обработчик Ctrl+C."""
+    """Обрабатывает Ctrl+C."""
     print("\nCtrl+C! Завершаю потоки...")
     stop_event.set()
 
 
-# --- Функции ---
 def connect_db():
-    """Устанавливает НОВОЕ соединение с БД."""
+    """Устанавливает новое соединение с БД."""
     try:
         conn = psycopg2.connect(
             dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD,
@@ -89,7 +93,7 @@ def generate_initial_value(param_type):
 
 
 def generate_data_for_parameter(parameter_id, param_type):
-    """Задача потока: генерирует и вставляет данные для ОДНОГО параметра."""
+    """Генерирует и вставляет данные для одного параметра."""
     print(f"[Поток {parameter_id} ({param_type})]: Запущен.")
     value = generate_initial_value(param_type)
     conn = None
@@ -145,7 +149,7 @@ def generate_data_for_parameter(parameter_id, param_type):
 
 # --- Основная функция ---
 def main():
-    # Устанавливаем обработчики сигналов
+    # Устанавливает обработчики сигналов
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
@@ -154,7 +158,7 @@ def main():
         sys.exit("Выход: Не удалось установить начальное соединение с БД.")
 
     parameters_to_simulate = get_parameters(initial_conn)
-    initial_conn.close()  # Закрываем соединение после получения списка
+    initial_conn.close()  # Закрывает соединение после получения списка
 
     if not parameters_to_simulate:
         print("В базе данных не найдено параметров для симуляции. Выход.")
@@ -172,14 +176,14 @@ def main():
         )
         threads.append(thread)
         thread.start()
-        time.sleep(0.01) # Небольшая задержка старта
+        time.sleep(0.01)  # Небольшая задержка старта
 
-    # Главный поток просто ждет сигнала остановки
+    # Главный поток ждёт сигнала остановки
     while not stop_event.is_set():
         try:
-            time.sleep(1)  # Можно проверять состояние потоков, если нужно
+            time.sleep(1)
         except KeyboardInterrupt:
-            signal_handler(None, None)  # Обрабатываем Ctrl+C и в главном цикле
+            signal_handler(None, None)  # Обрабатывает Ctrl+C и в главном цикле
 
     print("Основной поток: получен сигнал остановки.")
     print("Симуляция завершена.")
