@@ -1,0 +1,73 @@
+from pydantic import BaseModel, Field
+from typing import Optional
+import datetime
+
+
+'''
+==================================
+    Схемы для Monitoring Rules     
+==================================
+'''
+
+
+# --- Базовая схема для правила ---
+class RuleBase(BaseModel):
+    parameter_id: int
+    rule_name: Optional[str] = Field(None, max_length=50)
+    comparison_operator: str = Field(..., pattern=r"^(>|<|=|>=|<=)$", max_length=2)
+    threshold: float
+    is_active: bool = True
+
+
+# --- Схема для создания нового правила ---
+class RuleCreate(RuleBase):
+    pass
+
+
+# --- Схема для обновления правила ---
+class RuleUpdate(BaseModel):
+    rule_name: Optional[str] = Field(None, max_length=50)
+    comparison_operator: Optional[str] = Field(default=None, pattern=r"^(>|<|=|>=|<=)$", max_length=2)
+    threshold: Optional[float] = None
+    is_active: Optional[bool] = None
+
+
+# --- Схема для чтения правила ---
+class RuleRead(RuleBase):
+    rule_id: int
+    user_id: int
+    created_at: datetime.datetime
+
+    model_config = {
+        "from_attributes": True
+    }
+
+
+'''
+========================
+    Схемы для Alerts     
+========================
+'''
+
+
+# --- Базовая схема для тревоги ---
+class AlertBase(BaseModel):
+    rule_id: int
+    parameter_data_id: int
+    alert_message: Optional[str] = Field(None, max_length=150)
+    is_read: bool = False
+    alert_timestamp: datetime.datetime
+
+
+# --- Схема для обновления тревоги ---
+class AlertUpdate(BaseModel):
+    is_read: Optional[bool] = None
+
+
+# --- Схема для чтения тревоги ---
+class AlertRead(AlertBase):
+    alert_id: int
+
+    model_config = {
+        "from_attributes": True
+    }

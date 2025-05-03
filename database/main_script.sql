@@ -247,9 +247,9 @@ CREATE TABLE monitoring_rules (
     user_id INT NOT NULL,
     parameter_id INT NOT NULL,
     rule_name VARCHAR(50),
-    is_active BOOLEAN DEFAULT TRUE,
     comparison_operator VARCHAR(2) NOT NULL,
     threshold FLOAT8 NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT pk_monitoring_rules PRIMARY KEY (rule_id),
@@ -264,9 +264,9 @@ CREATE TABLE alerts (
     alert_id BIGINT GENERATED ALWAYS AS IDENTITY,
     rule_id INT NOT NULL,
     parameter_data_id BIGINT NOT NULL,
-    alert_timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     alert_message VARCHAR(150),
     is_read BOOLEAN DEFAULT FALSE,
+    alert_timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT pk_alerts PRIMARY KEY (alert_id),
     CONSTRAINT fk_alerts_rule_id FOREIGN KEY (rule_id) REFERENCES monitoring_rules(rule_id) ON DELETE CASCADE
@@ -745,9 +745,9 @@ COMMENT ON TABLE monitoring_rules IS 'Таблица правил монитор
     COMMENT ON COLUMN monitoring_rules.user_id IS 'Внешний ключ на пользователя, создавшего правило (users.user_id).';
     COMMENT ON COLUMN monitoring_rules.parameter_id IS 'Внешний ключ на параметр (связку "актуатор-тип параметра"), для которого создано правило (parameters.parameter_id).';
     COMMENT ON COLUMN monitoring_rules.rule_name IS 'Необязательное пользовательское название правила.';
-    COMMENT ON COLUMN monitoring_rules.is_active IS 'Флаг активности правила (включено/выключено).';
     COMMENT ON COLUMN monitoring_rules.comparison_operator IS 'Оператор сравнения (">", "<", "=", ">=", "<=").';
     COMMENT ON COLUMN monitoring_rules.threshold IS 'Пороговое значение для срабатывания правила.';
+    COMMENT ON COLUMN monitoring_rules.is_active IS 'Флаг активности правила (включено/выключено).';
     COMMENT ON COLUMN monitoring_rules.created_at IS 'Временная метка создания правила.';
 
 
@@ -756,9 +756,9 @@ COMMENT ON TABLE alerts IS 'Таблица журнала тревог (сраб
     COMMENT ON COLUMN alerts.alert_id IS 'Уникальный идентификатор тревоги.';
     COMMENT ON COLUMN alerts.rule_id IS 'Внешний ключ на правило, которое сработало (monitoring_rules.rule_id).';
     COMMENT ON COLUMN alerts.parameter_data_id IS 'Идентификатор строки в таблице parameter_data (parameter_data.data_id), которая (предположительно) вызвала срабатывание правила.';
-    COMMENT ON COLUMN alerts.alert_timestamp IS 'Временная метка срабатывания тревоги (генерации записи).';
     COMMENT ON COLUMN alerts.alert_message IS 'Текстовое сообщение тревоги (может генерироваться автоматически или быть частью правила).';
     COMMENT ON COLUMN alerts.is_read IS 'Флаг, указывающий, прочитана ли тревога пользователем.';
+    COMMENT ON COLUMN alerts.alert_timestamp IS 'Временная метка срабатывания тревоги (генерации записи).';
 
 -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
