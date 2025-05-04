@@ -1,8 +1,9 @@
-from app.db.base_class import Base
-from sqlalchemy import CHAR, TIMESTAMP, Integer, String, ForeignKey, CheckConstraint, func, Identity
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import Optional, List
 import datetime
+from typing import List, Optional
+from sqlalchemy import CHAR, TIMESTAMP, CheckConstraint, ForeignKey, Identity, Integer, String, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from app.db.base_class import Base
+
 
 # --- Справочник типов должностей ---
 class JobTitle(Base):

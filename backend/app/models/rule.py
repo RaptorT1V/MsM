@@ -1,12 +1,12 @@
-from app.db.base_class import Base
-from sqlalchemy import TIMESTAMP, Boolean, Float, BigInteger, Integer, String, ForeignKey, CheckConstraint, func, Identity
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import Optional, List, TYPE_CHECKING
 import datetime
+from typing import List, Optional, TYPE_CHECKING
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, Float, ForeignKey, func, Identity, Integer, String, TIMESTAMP
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from app.db.base_class import Base
 
 if TYPE_CHECKING:
-    from .user import User
     from .parameter import Parameter
+    from .user import User
 
 
 # --- Таблица правил мониторинга ---

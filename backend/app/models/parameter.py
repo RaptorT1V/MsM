@@ -1,8 +1,8 @@
-from app.db.base_class import Base
-from sqlalchemy import TIMESTAMP, Float, BigInteger, Integer, String, ForeignKey, UniqueConstraint, func, Identity
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import List, Optional, TYPE_CHECKING
 import datetime
+from typing import List, Optional, TYPE_CHECKING
+from sqlalchemy import BigInteger, Float, ForeignKey, func, Identity, Integer, String, TIMESTAMP, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from app.db.base_class import Base
 
 if TYPE_CHECKING:
     from .equipment import Actuator

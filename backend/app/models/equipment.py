@@ -1,13 +1,13 @@
-from app.db.base_class import Base
-from .enums import LineTypesEnum
-from sqlalchemy import Integer, String, ForeignKey, UniqueConstraint, Identity
+from typing import List, TYPE_CHECKING
+from sqlalchemy import ForeignKey, Identity, Integer, String, UniqueConstraint
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import List, TYPE_CHECKING
+from app.db.base_class import Base
+from .enums import LineTypesEnum
 
 if TYPE_CHECKING:
-    from .user import User  # noqa F401
     from .parameter import Parameter, ParameterType  # noqa F401
+    from .user import User  # noqa F401
 
 
 '''
@@ -110,7 +110,7 @@ class Actuator(Base):
     aggregate_id: Mapped[int] = mapped_column(Integer, ForeignKey("aggregates.aggregate_id", ondelete="CASCADE"), nullable=False, index=True)
     actuator_type_id: Mapped[int] = mapped_column(Integer, ForeignKey("actuator_types.actuator_type_id", ondelete="RESTRICT"), nullable=False, index=True)
 
-    # Здесь нету UniqueConstraint, т.к. иногда один агрегат может содержать в себе два актуатора одинакового типа (например, два электродвигателя)
+    # --> Здесь нету UniqueConstraint, т.к. в очень редких случаях один агрегат может содержать в себе два актуатора одинакового типа (например, два электродвигателя) <--
 
     aggregate: Mapped["Aggregate"] = relationship(back_populates="actuators")  # N:1 → Несколько актуаторов входят в состав одного агрегата (но один и тот же актуатор не может входить в состав двух агрегатов одновременно)
     actuator_type: Mapped["ActuatorType"] = relationship(back_populates="actuators")  # N:1 → Несколько актуаторов могут быть одного типа (но один и тот же актуатор не может быть двух типов одновременно)

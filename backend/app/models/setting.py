@@ -1,10 +1,10 @@
-from app.db.base_class import Base
-from .enums import AlarmTypesEnum
-from sqlalchemy import Boolean, Integer, String, ForeignKey, CheckConstraint
+from typing import List, TYPE_CHECKING
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, String
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import List, TYPE_CHECKING
+from app.db.base_class import Base
+from .enums import AlarmTypesEnum
 
 if TYPE_CHECKING:
     from .user import User
