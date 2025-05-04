@@ -1,6 +1,6 @@
+import datetime
 from pydantic import BaseModel, Field
 from typing import Optional
-import datetime
 
 
 '''
@@ -24,14 +24,6 @@ class RuleCreate(RuleBase):
     pass
 
 
-# --- Схема для обновления правила ---
-class RuleUpdate(BaseModel):
-    rule_name: Optional[str] = Field(None, max_length=50)
-    comparison_operator: Optional[str] = Field(default=None, pattern=r"^(>|<|=|>=|<=)$", max_length=2)
-    threshold: Optional[float] = None
-    is_active: Optional[bool] = None
-
-
 # --- Схема для чтения правила ---
 class RuleRead(RuleBase):
     rule_id: int
@@ -41,6 +33,14 @@ class RuleRead(RuleBase):
     model_config = {
         "from_attributes": True
     }
+
+
+# --- Схема для обновления правила ---
+class RuleUpdate(BaseModel):
+    rule_name: Optional[str] = Field(None, max_length=50)
+    comparison_operator: Optional[str] = Field(default=None, pattern=r"^(>|<|=|>=|<=)$", max_length=2)
+    threshold: Optional[float] = None
+    is_active: Optional[bool] = None
 
 
 '''
@@ -59,9 +59,11 @@ class AlertBase(BaseModel):
     alert_timestamp: datetime.datetime
 
 
-# --- Схема для обновления тревоги ---
-class AlertUpdate(BaseModel):
-    is_read: Optional[bool] = None
+# --- Схема для создания тревоги внутри бэкенда ---
+class AlertCreateInternal(BaseModel):
+    rule_id: int
+    parameter_data_id: int
+    alert_message: Optional[str] = None
 
 
 # --- Схема для чтения тревоги ---
@@ -71,3 +73,8 @@ class AlertRead(AlertBase):
     model_config = {
         "from_attributes": True
     }
+
+
+# --- Схема для обновления тревоги ---
+class AlertUpdate(BaseModel):
+    is_read: Optional[bool] = None

@@ -1,6 +1,6 @@
+import datetime
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
-import datetime
 
 
 # --- Базовая схема для пользователя ---
@@ -18,22 +18,6 @@ class UserCreate(UserBase):
     password: str
 
 
-# --- Схема для смены пароля пользователем ---
-class UserUpdatePassword(BaseModel):
-    current_password: str # Старый пароль для проверки
-    new_password: str     # Новый пароль
-
-
-# --- Схема для обновления данных админом ---
-class UserUpdateAdmin(BaseModel):
-    email: Optional[EmailStr] = None
-    phone: Optional[str] = Field(default=None, pattern=r'^\+7\d{10}$')
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    middle_name: Optional[str] = None
-    job_titles_id: Optional[int] = None
-
-
 # --- Схема для чтения данных пользователя ---
 class UserRead(UserBase):
     user_id: int
@@ -48,3 +32,19 @@ class UserRead(UserBase):
 # --- Схема для чтения данных пользователя со всеми полями из БД, включая хеш пароля ---
 class UserInDB(UserRead):
     password_hash: str
+
+
+# --- Схема для смены пароля пользователем ---
+class UserUpdatePassword(BaseModel):
+    current_password: str
+    new_password: str
+
+
+# --- Схема для обновления данных админом ---
+class UserUpdateAdmin(BaseModel):
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = Field(default=None, pattern=r'^\+7\d{10}$')
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    job_titles_id: Optional[int] = None

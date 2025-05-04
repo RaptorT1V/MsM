@@ -23,6 +23,7 @@ class ShopRead(ShopBase):
     }
 
 
+
 # --- Базовая схема для типа агрегата ---
 class AggregateTypeBase(BaseModel):
     aggregate_type_name: str
@@ -35,6 +36,7 @@ class AggregateTypeRead(AggregateTypeBase):
     model_config = {
         "from_attributes": True
     }
+
 
 
 # --- Базовая схема для типа актуатора ---
@@ -73,6 +75,7 @@ class LineRead(LineBase):
     }
 
 
+
 # --- Базовая схема для агрегата ---
 class AggregateBase(BaseModel):
     line_id: int
@@ -86,6 +89,7 @@ class AggregateRead(AggregateBase):
     model_config = {
         "from_attributes": True
     }
+
 
 
 # --- Базовая схема для актуатора ---

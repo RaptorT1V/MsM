@@ -11,14 +11,6 @@ class SettingBase(BaseModel):
     is_rules_public: bool = False
 
 
-# --- Схема для обновления настроек ---
-class SettingUpdate(BaseModel):
-    theme: Optional[str] = Field(default=None, pattern=r'^(light|dark)$')
-    language: Optional[str] = Field(default=None, pattern=r'^(ru|en)$')
-    alarm_types: Optional[List[AlarmTypesEnum]] = None
-    is_rules_public: Optional[bool] = None
-
-
 # --- Схема для чтения настроек ---
 class SettingRead(SettingBase):
     user_id: int
@@ -26,3 +18,11 @@ class SettingRead(SettingBase):
     model_config = {
         "from_attributes": True
     }
+
+
+# --- Схема для обновления настроек ---
+class SettingUpdate(BaseModel):
+    theme: Optional[str] = Field(default=None, pattern=r'^(light|dark)$')
+    language: Optional[str] = Field(default=None, pattern=r'^(ru|en)$')
+    alarm_types: Optional[List[AlarmTypesEnum]] = None
+    is_rules_public: Optional[bool] = None
