@@ -1,6 +1,5 @@
 from typing import List, TYPE_CHECKING
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, String
-from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import Boolean, Enum as SQLEnum, CheckConstraint, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base_class import Base

@@ -1,6 +1,5 @@
 from typing import List, TYPE_CHECKING
-from sqlalchemy import ForeignKey, Identity, Integer, String, UniqueConstraint
-from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import ForeignKey, Enum as SQLEnum, Identity, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base_class import Base
 from .enums import LineTypesEnum
