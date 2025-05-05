@@ -1,26 +1,13 @@
+from typing import Generator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
-from dotenv import load_dotenv
-from typing import Generator
-import os
+from app.core.config import settings
 
-# --- Загрузка переменных окружения ---
-load_dotenv()
 
-DB_NAME = os.getenv("DB_NAME", "Ural_Steel")
-DB_USER = os.getenv("DB_USER", "admin")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "admin")
-DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
-DB_PORT = os.getenv("DB_PORT", "5432")
+# --- Создание "движка" SQLAlchemy (Engine) ---
+engine = create_engine(settings.SQLALCHEMY_DATABASE_URL, pool_pre_ping=True)
 
-# --- Формирование URL для подключения ---
-SQLALCHEMY_DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-print(f"Database URL: postgresql+psycopg2://{DB_USER}:*****@{DB_HOST}:{DB_PORT}/{DB_NAME}")
-
-# --- Создание "Движка" SQLAlchemy (Engine) ---
-engine = create_engine(SQLALCHEMY_DATABASE_URL, pool_pre_ping=True)
-
-# --- Создание "Фабрики Сессий" (SessionLocal) ---
+# --- Создание "фабрики сессий" (SessionLocal) ---
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
