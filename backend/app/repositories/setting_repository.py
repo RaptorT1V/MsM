@@ -14,10 +14,8 @@ class UserSettingRepository(CRUDBase[UserSetting, BaseModel, SettingUpdate]):
         return db.get(self.model, user_id)
 
     def get_or_create(self, db: Session, *, user_id: int) -> UserSetting:
-        """
-        Получает настройки пользователя по ID.
-        Если не существуют – создаёт запись с настройками по умолчанию и возвращает её.
-        """
+        """ Получает настройки пользователя по ID.
+        Если не существуют – создаёт запись с настройками по умолчанию и возвращает её. """
         instance = self.get(db=db, user_id=user_id)
         if instance:
             return instance

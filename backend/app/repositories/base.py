@@ -19,10 +19,8 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         self.model = model
 
     def get_multi(self, db: Session, *, skip: int = 0, limit: int = 100) -> List[ModelType]:
-        """
-        Получает список записей из БД с возможностью пропуска (skip) и ограничения (limit).
-        Используется для пагинации.
-        """
+        """ Получает список записей из БД с возможностью пропуска (skip) и ограничения (limit).
+        Используется для пагинации. """
         statement = select(self.model).offset(skip).limit(limit)
         result = db.execute(statement)
         return cast(List[ModelType], result.scalars().all())
@@ -37,10 +35,8 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         return db_obj
 
     def update(self, db: Session, *, db_obj: ModelType, obj_in: Union[UpdateSchemaType, Dict[str, Any]]) -> ModelType:  # noqa B902: "Используется self неявно: через ModelType/UpdateSchemaType и для возможности override"
-        """
-        Обновляет существующую запись в БД данными из Pydantic схемы или словаря.
-        Обновляются только те поля, которые присутствуют в obj_in.
-        """
+        """ Обновляет существующую запись в БД данными из Pydantic схемы или словаря.
+        Обновляются только те поля, которые присутствуют в obj_in. """
         obj_data = jsonable_encoder(db_obj)  # Текущие данные объекта
 
         if isinstance(obj_in, dict):

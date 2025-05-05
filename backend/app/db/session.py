@@ -13,10 +13,8 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # --- Функция-зависимость FastAPI для получения сессии БД ---
 def get_db() -> Generator[Session, None, None]:
-    """
-    Предоставляет сессию БД для одного API-запроса.
-    Гарантирует закрытие сессии после завершения запроса.
-    """
+    """ Предоставляет сессию БД для одного API-запроса.
+    Гарантирует закрытие сессии после завершения запроса. """
     db: Session | None = None
     try:
         db = SessionLocal()
