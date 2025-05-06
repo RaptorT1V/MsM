@@ -22,13 +22,13 @@ class MonitoringRuleRepository(CRUDBase[MonitoringRule, RuleCreate, RuleUpdate])
 
     def get_by_user(self, db: Session, *, user_id: int, skip: int = 0, limit: int = 100) -> List[MonitoringRule]:
         """ Получает список правил для конкретного пользователя с пагинацией """
-        statement = (select(self.model).where(self.model.user_id == user_id).offset(skip).limit(limit))
+        statement = (select(self.model).where(self.model.user_id == user_id).order_by(self.model.rule_id).offset(skip).limit(limit))
         result = db.execute(statement)
         return cast(List[MonitoringRule], result.scalars().all())
 
     def get_by_parameter(self, db: Session, *, parameter_id: int, skip: int = 0, limit: int = 100) -> List[MonitoringRule]:
         """ Получает список правил для конкретного параметра с пагинацией """
-        statement = (select(self.model).where(self.model.parameter_id == parameter_id).offset(skip).limit(limit))
+        statement = (select(self.model).where(self.model.parameter_id == parameter_id).order_by(self.model.rule_id).offset(skip).limit(limit))
         result = db.execute(statement)
         return cast(List[MonitoringRule], result.scalars().all())
 
@@ -46,6 +46,20 @@ class MonitoringRuleRepository(CRUDBase[MonitoringRule, RuleCreate, RuleUpdate])
         db.commit()
         db.refresh(db_obj)
         return db_obj
+
+    def bulk_create_with_owner(self, db: Session, *, rules_in: List[RuleCreate], user_id: int) -> List[MonitoringRule]:
+        """ Массово создаёт правила для пользователя """
+        objects_to_create = []
+        for rule_schema in rules_in:
+            obj_in_data = rule_schema.model_dump()
+            db_obj = self.model(**obj_in_data, user_id=user_id)
+            objects_to_create.append(db_obj)
+
+        if not objects_to_create:
+            return []
+        db.add_all(objects_to_create)
+        db.commit()
+        return objects_to_create
 
     def remove(self, db: Session, *, rule_id: int) -> Optional[MonitoringRule]:
         """ Удаляет правило по ID """
@@ -94,6 +108,7 @@ class AlertRepository(CRUDBase[Alert, AlertCreateInternal, AlertUpdate]):
             )
             .where(self.model.is_read == False)
             .values(is_read=True)
+            .execution_options(synchronize_session="fetch")
         )
         result = db.execute(statement)
         db.commit()
