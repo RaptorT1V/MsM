@@ -2,7 +2,8 @@ import datetime
 from typing import cast, List, Optional
 from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import joinedload, Session
+from app.models.equipment import Shop, AggregateType, ActuatorType, Line, Aggregate, Actuator
 from app.models.parameter import ParameterType, Parameter, ParameterData
 from app.repositories.base import CRUDBase
 
@@ -91,6 +92,34 @@ class ParameterDataRepository:  # НЕ наследуется от CRUDBase, т.
 
         result = db.execute(statement)
         return cast(List[ParameterData], result.scalars().all())
+
+
+    def get_by_data_id_with_details(self, db: Session, *, parameter_data_id: int) -> Optional[ParameterData]:
+        """ Получает запись ParameterData по ее parameter_data_id
+        с предзагрузкой всех связанных данных, необходимых для формирования сообщения тревоги """
+        statement = (
+            select(self.model)
+            .options(
+                # Загружает все необходимые связи одним запросом
+                joinedload(self.model.parameter)
+                .joinedload(Parameter.parameter_type),
+                joinedload(self.model.parameter)
+                .joinedload(Parameter.actuator)
+                .joinedload(Actuator.actuator_type),
+                joinedload(self.model.parameter)
+                .joinedload(Parameter.actuator)
+                .joinedload(Actuator.aggregate)
+                .joinedload(Aggregate.aggregate_type),
+                joinedload(self.model.parameter)
+                .joinedload(Parameter.actuator)
+                .joinedload(Actuator.aggregate)
+                .joinedload(Aggregate.line)
+                .joinedload(Line.shop)
+            )
+            .where(self.model.parameter_data_id == parameter_data_id)
+        )
+        result = db.execute(statement)
+        return result.scalar_one_or_none()
 
 
 # --- Экземпляры репозиториев ---

@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
+    # --- Настройки NATS ---
+    NATS_URL: str = "nats://localhost:4222"
+    NATS_SUBJECT: str = "monitoring.data.new"
+    NATS_STREAM: str = "monitoring_stream"
+    NATS_QUEUE_GROUP: str = "rule_checker_group"
+
     # --- URL БД (будет вычислен) ---
     SQLALCHEMY_DATABASE_URL: Optional[PostgresDsn] = None
 

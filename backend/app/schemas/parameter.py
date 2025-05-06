@@ -61,6 +61,11 @@ class ParameterDataBase(BaseModel):
     data_timestamp: datetime.datetime
 
 
+# --- Схема для создания новой записи данных параметра *(используется воркером)* ---
+class ParameterDataCreate(ParameterDataBase):
+    pass
+
+
 # --- Схема для чтения временных данных параметра ---
 class ParameterDataRead(ParameterDataBase):
     parameter_data_id: int  # На всякий случай :)

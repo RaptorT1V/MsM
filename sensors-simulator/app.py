@@ -1,17 +1,9 @@
-import os, psycopg2, random, signal, sys, threading, time
+import asyncio, json, nats, psycopg2, random, signal, sys, threading
+from nats.errors import ConnectionClosedError, NoServersError, TimeoutError
+from backend.app.core.config import settings
 from datetime import datetime, timezone
-from dotenv import load_dotenv
+from typing import List, Tuple
 
-
-# --- Загрузка .env ---
-load_dotenv()
-
-# --- Параметры подключения к БД (читаем из .env) ---
-DB_NAME = os.getenv("DB_NAME", "Ural_Steel")
-DB_USER = os.getenv("DB_USER", "admin")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "admin")
-DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
-DB_PORT = os.getenv("DB_PORT", "5432")
 
 # --- Параметры симуляции ---
 INITIAL_VALUE_MIN = 10.0
@@ -41,21 +33,22 @@ def signal_handler(signum, frame):
 
 
 def connect_db():
-    """ Устанавливает новое соединение с БД """
+    """ Устанавливает новое соединение с БД (только для чтения ID) """
     try:
         conn = psycopg2.connect(
-            dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD,
-            host=DB_HOST, port=DB_PORT
+            dbname=settings.DB_NAME, user=settings.DB_USER, password=settings.DB_PASSWORD,
+            host=settings.DB_HOST, port=settings.DB_PORT
         )
         return conn
     except psycopg2.OperationalError as e:
-        print(f"ОШИБКА: Не удалось подключиться к БД: {e}")
+        print(f"ОШИБКА: Не удалось подключиться к БД для чтения параметров: {e}")
         return None
 
 
-def get_parameters(conn):
+def get_parameters_from_db() -> List[Tuple[int, str]]:
     """ Получает ID и типы параметров из БД """
     parameters = []
+    conn = connect_db()
     if not conn:
         return parameters
     try:
@@ -63,130 +56,128 @@ def get_parameters(conn):
         cursor.execute("""
             SELECT p.parameter_id, pt.parameter_type_name
             FROM parameters p
-            JOIN parameter_types pt ON p.parameter_type_id = pt.parameter_type_id
+            JOIN parameter_types pt ON p.parameter_type_id = pt.parameter_type_id;
         """)
         parameters = cursor.fetchall()
         cursor.close()
     except (Exception, psycopg2.Error) as error:
-        print(f"Ошибка при получении параметров: {error}")
+        print(f"Ошибка при получении параметров из БД: {error}")
+    finally:
+        if conn:
+            conn.close()
     return parameters
 
 
 def generate_initial_value(param_type):
     """ Генерирует начальное значение на основе типа параметра """
     param_type = param_type.lower()
-    if 'температура' in param_type:
-        return random.uniform(20, 100)
-    elif 'ток' in param_type:
-        return random.uniform(10, 50)
-    elif 'мощность' in param_type:
-        return random.uniform(1000, 5000)
-    elif 'скорость' in param_type:
-        return random.uniform(1, 10)
-    elif 'вибрация' in param_type:
-        return random.uniform(0, 3)
-    elif 'давление' in param_type:
-        return random.uniform(1, 5)
-    elif 'разрежение' in param_type:
-        return random.uniform(50, 200)
-    elif 'уровень' in param_type or 'высота' in param_type:
-        return random.uniform(10, 100)
-    else:
-        return random.uniform(0, 50)
+    if 'температура' in param_type: return random.uniform(20, 100)
+    elif 'ток' in param_type: return random.uniform(10, 50)
+    elif 'мощность' in param_type: return random.uniform(1000, 5000)
+    elif 'скорость' in param_type: return random.uniform(1, 10)
+    elif 'вибрация' in param_type: return random.uniform(0, 3)
+    elif 'давление' in param_type: return random.uniform(1, 5)
+    elif 'разрежение' in param_type: return random.uniform(50, 200)
+    elif 'уровень' in param_type or 'высота' in param_type: return random.uniform(10, 100)
+    else: return random.uniform(0, 50)
 
 
-def generate_data_for_parameter(parameter_id, param_type):
-    """ Генерирует и вставляет данные для одного параметра """
+async def generate_data_for_parameter(nats_client, parameter_id, param_type):
+    """ Асинхронная задача: генерирует данные и публикует их в NATS """
     print(f"[Поток {parameter_id} ({param_type})]: Запущен.")
     value = generate_initial_value(param_type)
-    conn = None
 
     while not stop_event.is_set():
         try:
-            conn = connect_db()
-            if not conn:
-                print(f"[Поток {parameter_id}]: Ошибка подключения, пауза...")
-                time.sleep(5)
-                continue
-            cursor = conn.cursor()
-
+            # Генерирует новое значение
             delta = random.uniform(STEP_MIN, STEP_MAX)
             value += delta
             value = max(MIN_VALUE_CLAMP, min(MAX_VALUE_CLAMP, value))
             timestamp = datetime.now(timezone.utc)
 
-            cursor.execute(
-                """
-                INSERT INTO parameter_data (parameter_id, parameter_value, data_timestamp)
-                VALUES (%s, %s, %s);
-                """,
-                (parameter_id, value, timestamp)
-            )
-            conn.commit()
-            cursor.close()
-        except KeyboardInterrupt:
-            break
-        except (Exception, psycopg2.Error) as error:
-            print(f"[Поток {parameter_id}]: Ошибка БД - {error}")
-            if conn:
-                try:
-                    conn.rollback()
-                except Exception as rollback_error:
-                    print(f"[Поток {parameter_id}]: Ошибка при rollback: {rollback_error}")
-                    pass
-        finally:
-            if conn:
-                conn.close()
+            # Формирует сообщение JSON
+            payload_dict = {
+                "parameter_id": parameter_id,
+                "parameter_value": round(value, 2),
+                "data_timestamp": timestamp.isoformat()
+            }
+            payload_json = json.dumps(payload_dict)
 
-        sleep_duration = random.uniform(DEFAULT_SLEEP_MIN, DEFAULT_SLEEP_MAX)
-        if stop_event.wait(timeout=sleep_duration):
-            break
+            # Публикует сообщение в NATS
+            await nats_client.publish(settings.NATS_SUBJECT, payload_json.encode())
+            print(f"Published: {payload_json}")
+
+            # Асинхронная пауза
+            sleep_duration = random.uniform(DEFAULT_SLEEP_MIN, DEFAULT_SLEEP_MAX)
+            await asyncio.sleep(sleep_duration)
+
+        # Обработка ошибок NATS и KeyboardInterrupt
+        except KeyboardInterrupt: break
+        except ConnectionClosedError:
+            print(f"ОШИБКА NATS [Поток {parameter_id}]: Соединение закрыто...")
+            await asyncio.sleep(5)
+        except TimeoutError:
+            print(f"ОШИБКА NATS [Поток {parameter_id}]: Таймаут.")
+            await asyncio.sleep(1)
+        except NoServersError as e:
+            print(f"ОШИБКА NATS [Поток {parameter_id}]: Нет серверов - {e}")
+            await asyncio.sleep(5)
+        except Exception as error:
+            print(f"ОШИБКА в потоке {parameter_id}: {error}")
+            await asyncio.sleep(5)
+
     print(f"[Поток {parameter_id}]: Завершен.")
 
 
-def main():
-    """
-    Инициализирует и запускает симулятор отправки данных с датчиков:
-        - Устанавливает обработчики сигналов для корректного завершения;
-        - Подключается к базе данных для получения списка параметров;
-        - Запускает отдельный поток генерации данных для каждого найденного параметра;
-        - Ожидает сигнала прерывания (Ctrl+C) для остановки симуляции.
-    """
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+async def main_async():
+    """ Главная асинхронная функция симулятора """
+    nats_client = None
+    try:
+        # 1. Получает список параметров из БД
+        print("Получение списка параметров из PostgreSQL...")
+        parameters_to_simulate = get_parameters_from_db()
+        if not parameters_to_simulate:
+            print("В базе данных не найдено параметров для симуляции. Выход.")
+            sys.exit(1)
+        print(f"Найдено {len(parameters_to_simulate)} параметров.")
 
-    initial_conn = connect_db()
-    if not initial_conn:
-        sys.exit("Выход: Не удалось установить начальное соединение с БД.")
-    parameters_to_simulate = get_parameters(initial_conn)
-    initial_conn.close()
+        # 2. Подключается к NATS
+        print(f"Подключаюсь к NATS: {settings.NATS_URL}...")
+        nats_client = await nats.connect(settings.NATS_URL, name="Parameter Simulator")
+        print("Успешно подключено к NATS.")
 
-    if not parameters_to_simulate:
-        print("В базе данных не найдено параметров для симуляции. Выход.")
-        sys.exit()
-    print(f"Найдено {len(parameters_to_simulate)} параметров. Запускаю потоки симуляции...")
-    print("Нажмите Ctrl+C для остановки.")
+        # 3. Запускает задачи генерации
+        print(f"Запускаю {len(parameters_to_simulate)} потоков генерации данных...")
+        print("Нажмите Ctrl+C для остановки.")
+        tasks = []
+        for p_id, p_type in parameters_to_simulate:
+            task = asyncio.create_task(generate_data_for_parameter(nats_client, p_id, p_type))
+            tasks.append(task)
+            await asyncio.sleep(0.01)
 
-    threads = []
-    for p_id, p_type in parameters_to_simulate:
-        thread = threading.Thread(
-            target=generate_data_for_parameter,
-            args=(p_id, p_type),
-            daemon=True
-        )
-        threads.append(thread)
-        thread.start()
-        time.sleep(0.01)
+        # 4. Ожидает сигнала остановки
+        while not stop_event.is_set():
+            await asyncio.sleep(1)
 
-    while not stop_event.is_set():
-        try:
-            time.sleep(1)
-        except KeyboardInterrupt:
-            signal_handler(None, None)
+        # Если остановка произошла (Ctrl+C), отменяет задачи
+        print("Отменяю задачи генерации...")
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
 
-    print("Основной поток: получен сигнал остановки.")
-    print("Симуляция завершена.")
+    except NoServersError as e:
+         print(f"Критическая ошибка: Не удалось подключиться к NATS - {e}")
+    except Exception as e:
+         print(f"Критическая ошибка в main_async: {e}")
+    finally:
+        print("Основная задача: завершение.")
+        if nats_client and nats_client.is_connected:
+            print("Закрываю соединение с NATS...")
+            await nats_client.close()
+        print("Симуляция завершена.")
 
 
 if __name__ == "__main__":
-    main()
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    asyncio.run(main_async())
