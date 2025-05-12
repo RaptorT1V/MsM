@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 from dotenv import load_dotenv
 from pydantic import PostgresDsn, model_validator
 from pydantic_settings import BaseSettings
@@ -29,6 +29,9 @@ class Settings(BaseSettings):
 
     # --- URL БД (будет вычислен) ---
     SQLALCHEMY_DATABASE_URL: Optional[PostgresDsn] = None
+
+    # --- Роли администраторов ---
+    ADMIN_JOB_TITLES: List[str] = ["Директор"]
 
     # --- Валидатор соберёт URL после загрузки остальных полей ---
     @model_validator(mode='after')
