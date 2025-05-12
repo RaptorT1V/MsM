@@ -1,8 +1,12 @@
 import datetime
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from sqlalchemy import CHAR, TIMESTAMP, CheckConstraint, ForeignKey, Identity, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base_class import Base
+
+if TYPE_CHECKING:
+    from .rule import MonitoringRule
+    from .setting import UserSetting
 
 
 # --- Справочник типов должностей ---
