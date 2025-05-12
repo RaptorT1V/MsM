@@ -39,9 +39,15 @@ class UserRepository(CRUDBase[User, UserCreate, UserUpdateAdmin]):
         """ Удаляет пользователя по его ID """
         obj = self.get(db=db, user_id=user_id)
         if obj:
-            db.delete(obj)
-            db.commit()
-        return obj
+            try:
+                db.delete(obj)
+                db.commit()
+                return obj
+            except Exception as e:
+                print(f"Ошибка при удалении User {user_id}: {e}")
+                db.rollback()
+                return None
+        return None
 
 
 # --- Экземпляры репозиториев ---

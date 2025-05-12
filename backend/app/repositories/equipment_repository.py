@@ -30,9 +30,15 @@ class ShopRepository(CRUDBase[Shop, BaseModel, BaseModel]):
         """ Удаляет цех по ID """
         obj = self.get(db=db, shop_id=shop_id)
         if obj:
-            db.delete(obj)
-            db.commit()
-        return obj
+            try:
+                db.delete(obj)
+                db.commit()
+                return obj
+            except Exception as e:
+                print(f"Ошибка при удалении Shop {shop_id}: {e}")
+                db.rollback()
+                return None
+        return None
 
 
 # --- Репозиторий для типов агрегатов ---
@@ -119,9 +125,15 @@ class LineRepository(CRUDBase[Line, BaseModel, BaseModel]):
         """ Удаляет линию по ID (с каскадным удалением агрегатов) """
         obj = self.get(db=db, line_id=line_id)
         if obj:
-            db.delete(obj)
-            db.commit()
-        return obj
+            try:
+                db.delete(obj)
+                db.commit()
+                return obj
+            except Exception as e:
+                print(f"Ошибка при удалении Line {line_id}: {e}")
+                db.rollback()
+                return None
+        return None
 
 
 # --- Репозиторий для агрегатов ---
@@ -141,9 +153,15 @@ class AggregateRepository(CRUDBase[Aggregate, BaseModel, BaseModel]):
         """ Удаляет агрегат по ID (с каскадным удалением актуаторов) """
         obj = self.get(db=db, aggregate_id=aggregate_id)
         if obj:
-            db.delete(obj)
-            db.commit()
-        return obj
+            try:
+                db.delete(obj)
+                db.commit()
+                return obj
+            except Exception as e:
+                print(f"Ошибка при удалении Aggregate {aggregate_id}: {e}")
+                db.rollback()
+                return None
+        return None
 
 
 # --- Репозиторий для актуаторов ---
@@ -163,9 +181,15 @@ class ActuatorRepository(CRUDBase[Actuator, BaseModel, BaseModel]):
         """ Удаляет актуатор по ID (с каскадным удалением параметров) """
         obj = self.get(db=db, actuator_id=actuator_id)
         if obj:
-            db.delete(obj)
-            db.commit()
-        return obj
+            try:
+                db.delete(obj)
+                db.commit()
+                return obj
+            except Exception as e:
+                print(f"Ошибка при удалении Actuator {actuator_id}: {e}")
+                db.rollback()
+                return None
+        return None
 
 
 # --- Экземпляры репозиториев ---

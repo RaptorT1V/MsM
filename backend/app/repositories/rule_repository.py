@@ -65,9 +65,15 @@ class MonitoringRuleRepository(CRUDBase[MonitoringRule, RuleCreate, RuleUpdate])
         """ Удаляет правило по ID """
         obj = self.get(db=db, rule_id=rule_id)
         if obj:
-            db.delete(obj)
-            db.commit()
-        return obj
+            try:
+                db.delete(obj)
+                db.commit()
+                return obj
+            except Exception as e:
+                print(f"Ошибка при удалении Rule {rule_id}: {e}")
+                db.rollback()
+                return None
+        return None
 
 
 '''
@@ -118,9 +124,15 @@ class AlertRepository(CRUDBase[Alert, AlertCreateInternal, AlertUpdate]):
         """ Удаляет тревогу по ID """
         obj = self.get(db=db, alert_id=alert_id)
         if obj:
-            db.delete(obj)
-            db.commit()
-        return obj
+            try:
+                db.delete(obj)
+                db.commit()
+                return obj
+            except Exception as e:
+                print(f"Ошибка при удалении Alert {alert_id}: {e}")
+                db.rollback()
+                return None
+        return None
 
 
 # --- Экземпляры репозиториев ---
