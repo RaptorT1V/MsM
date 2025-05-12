@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from app.models.user import User
@@ -77,6 +77,18 @@ def update_user_admin(*, db: Session, user_to_update: User, user_in: UserUpdateA
     return updated_user
 
 
-def get_user(*, db: Session, user_id: int) -> Optional[User]:  # Просто обёртка над репозиторием
-    """ Получает пользователя по ID """
+def get_user_admin(*, db: Session, user_id: int) -> Optional[User]:
+    """ Получает пользователя по ID (для админа) """
     return user_repository.get(db=db, user_id=user_id)
+
+
+def get_all_users_admin(db: Session, *, skip: int = 0, limit: int = 100) -> List[User]:
+    """ Получает список всех пользователей (для админа) """
+    return user_repository.get_multi(db=db, skip=skip, limit=limit)
+
+
+def delete_user_admin(*, db: Session, user_id_to_delete: int) -> Optional[User]:
+    """ Удаляет пользователя по ID (для админа).
+    Возвращает удаленный объект User или None, если пользователь не найден. """
+    deleted_user = user_repository.remove(db=db, user_id=user_id_to_delete)
+    return deleted_user

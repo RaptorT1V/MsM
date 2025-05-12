@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Union, List, cast
+from typing import Optional, List, cast
 from sqlalchemy import select, update as sqlalchemy_update
 from sqlalchemy.orm import Session
 from app.models.rule import Alert, MonitoringRule

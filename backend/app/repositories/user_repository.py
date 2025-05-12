@@ -1,7 +1,7 @@
-from typing import Any, Dict, Optional, Union, List
+from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from app.models.user import User, JobTitle
+from app.models.user import User
 from app.repositories.base import CRUDBase
 from app.schemas.user import UserCreate, UserUpdateAdmin
 

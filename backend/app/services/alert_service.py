@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
-from app.models.parameter import ParameterData
-from app.models.rule import MonitoringRule
+from app.models.parameter import ParameterData  # noqa F401
+from app.models.rule import MonitoringRule  # noqa F401
 from app.repositories.parameter_repository import parameter_data_repository
 from app.repositories.rule_repository import rule_repository, alert_repository
 from app.schemas.rule import AlertCreateInternal

@@ -3,7 +3,7 @@ from typing import cast, List, Optional
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload, Session
-from app.models.equipment import Shop, AggregateType, ActuatorType, Line, Aggregate, Actuator
+from app.models.equipment import Shop, AggregateType, ActuatorType, Line, Aggregate, Actuator  # noqa F401
 from app.models.parameter import ParameterType, Parameter, ParameterData
 from app.repositories.base import CRUDBase
 

@@ -4,8 +4,6 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.models.enums import LineTypesEnum
 from app.models.user import User
-from app.models.equipment import Line, Aggregate, Actuator
-from app.models.parameter import Parameter
 from app.repositories.equipment_repository import shop_repository, line_repository, aggregate_repository, actuator_repository
 from app.repositories.parameter_repository import parameter_repository
 

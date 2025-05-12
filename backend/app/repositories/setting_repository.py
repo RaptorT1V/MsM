@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Any, Dict, cast, Optional, Union
+from typing import Optional
 from sqlalchemy.orm import Session
 from app.models.setting import UserSetting
 from app.repositories.base import CRUDBase
