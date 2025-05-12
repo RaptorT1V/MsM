@@ -87,7 +87,7 @@ def export_user_rules(*, db: Session, current_user: User) -> List[Dict[str, Any]
             "is_active": rule.is_active,
             "comparison_operator": rule.comparison_operator,
             "threshold": rule.threshold,
-            # TODO: Можно добавить parameter_type_name, actuator_name и т.д.
+            # TODO: В БУДУЩЕМ можно будет добавить parameter_type_name, actuator_name и т.д.
         })
     return export_data
 

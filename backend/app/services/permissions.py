@@ -3,6 +3,7 @@ from typing import Any, Dict, List
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.models.enums import LineTypesEnum
+from app.models.equipment import Line  # noqa F401
 from app.models.user import User
 from app.repositories.equipment_repository import shop_repository, line_repository, aggregate_repository, actuator_repository
 from app.repositories.parameter_repository import parameter_repository
@@ -33,7 +34,7 @@ ROLE_SCOPES_CONFIG: Dict[str, Dict[str, Any]] = {
     "Аналитик 2-ой линии аглофабрики":  {"scope_type": ScopeTypeEnum.LINE, "shop_name": "Агломерационный цех", "line_type": LineTypesEnum.SECOND},
     "Аналитик 1-ой линии ЭСПЦ":         {"scope_type": ScopeTypeEnum.LINE, "shop_name": "Электросталеплавильный цех", "line_type": LineTypesEnum.FIRST},
     "Аналитик 2-ой линии ЭСПЦ":         {"scope_type": ScopeTypeEnum.LINE, "shop_name": "Электросталеплавильный цех", "line_type": LineTypesEnum.SECOND},
-    # TODO: Добавить другие должности в будущем
+    # TODO: В БУДУЩЕМ нужно будет добавить другие должности
 }
 
 
