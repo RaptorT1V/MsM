@@ -16,7 +16,7 @@ from app.services.permissions import can_user_access_actuator, can_user_access_p
 '''
 
 
-def get_parameter_types(*, db: Session, skip: int = 0, limit: int = 100) -> List[ParameterType]:
+def get_all_parameter_types(*, db: Session, skip: int = 0, limit: int = 100) -> List[ParameterType]:
     """ Получает список всех типов параметров """
     return parameter_type_repository.get_multi(db=db, skip=skip, limit=limit)
 
