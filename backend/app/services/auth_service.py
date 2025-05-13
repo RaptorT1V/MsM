@@ -2,13 +2,16 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 from jose import jwt
 from passlib.context import CryptContext
+from sqlalchemy.orm import Session
 from app.core.config import settings
+from app.models.user import User
+from app.repositories.user_repository import user_repository
 
 
 '''
-=========================
-    Работа с паролями    
-=========================
+==========================================
+    Работа с паролями и аутентификация    
+==========================================
 '''
 
 
@@ -25,6 +28,18 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
+def authenticate_user(*, db: Session, username: str, password: str) -> Optional[User]:
+    """ Аутентифицирует пользователя по имени пользователя (email или телефон) и паролю.
+    Возвращает объект User в случае успеха, иначе None. """
+    user = user_repository.get_by_email(db, email=username)
+    if not user:
+        user = user_repository.get_by_phone(db, phone=username)
+
+    if not user or not verify_password(password, user.password_hash):
+        return None
+    return user
+
+
 '''
 =============================
     Работа с JWT-токенами    
@@ -32,7 +47,7 @@ def get_password_hash(password: str) -> str:
 '''
 
 
-def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(*, data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
     """ Генерирует новый JWT-токен доступа """
     to_encode = data.copy()
     if expires_delta:
@@ -45,6 +60,7 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
     return encoded_jwt
 
 
+# Возможно, понадобится в будущем для валидации токена на стороне сервера
 '''
 def decode_token(token: str) -> Optional[Dict[str, Any]]:
     """ Декодирует JWT токен и получает данные (payload) """
