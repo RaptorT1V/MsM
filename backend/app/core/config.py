@@ -1,6 +1,6 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 from dotenv import load_dotenv
-from pydantic import PostgresDsn, model_validator
+from pydantic import AnyHttpUrl, model_validator, PostgresDsn
 from pydantic_settings import BaseSettings
 
 
@@ -29,6 +29,9 @@ class Settings(BaseSettings):
 
     # --- URL БД (будет вычислен) ---
     SQLALCHEMY_DATABASE_URL: Optional[PostgresDsn] = None
+
+    # --- Настройки CORS ---
+    BACKEND_CORS_ORIGINS: List[Union[AnyHttpUrl, str]] = ["http://localhost", "http://localhost:8080", "http://localhost:5000", "http://localhost:3000"]
 
     # --- Роли администраторов ---
     ADMIN_JOB_TITLES: List[str] = ["Директор"]
