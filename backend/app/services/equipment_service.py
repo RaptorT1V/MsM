@@ -1,16 +1,16 @@
 from typing import List
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-from app.models.equipment import Shop, Line, Aggregate, Actuator
+from app.models.equipment import Shop, AggregateType, ActuatorType, Line, Aggregate, Actuator
 from app.models.user import User
-from app.repositories.equipment_repository import shop_repository, line_repository, aggregate_repository, actuator_repository
+from app.repositories.equipment_repository import shop_repository, aggregate_type_repository, actuator_type_repository, line_repository, aggregate_repository, actuator_repository
 from app.services.permissions import ScopeTypeEnum, get_user_access_scope, can_user_access_shop, can_user_access_line, can_user_access_aggregate
 
 
 '''
-===============================================
-    Основные сервисные функции для иерархии    
-===============================================
+==========================================
+    Сервисные функции для справочников    
+==========================================
 '''
 
 
@@ -30,6 +30,23 @@ def get_available_shops(*, db: Session, current_user: User) -> List[Shop]:
         shops = [shop_repository.get(db=db, shop_id=s_id) for s_id in shop_ids]
         return [s for s in shops if s is not None]
     return []
+
+
+def get_all_aggregate_types(db: Session, skip: int = 0, limit: int = 1000) -> List[AggregateType]:
+    """ Получает список всех типов агрегатов """
+    return aggregate_type_repository.get_multi(db=db, skip=skip, limit=limit)
+
+
+def get_all_actuator_types(db: Session, skip: int = 0, limit: int = 1000) -> List[ActuatorType]:
+    """ Получает список всех типов актуаторов """
+    return actuator_type_repository.get_multi(db=db, skip=skip, limit=limit)
+
+
+'''
+======================================
+    Сервисные функции для иерархии    
+======================================
+'''
 
 
 def get_lines_for_shop(*, db: Session, current_user: User, shop_id: int, skip: int = 0, limit: int = 100) -> List[Line]:
