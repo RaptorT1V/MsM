@@ -1,9 +1,19 @@
+from typing import List, Optional
 from sqlalchemy.orm import Session
+from fastapi import HTTPException, status
 from app.models.parameter import ParameterData  # noqa F401
-from app.models.rule import MonitoringRule  # noqa F401
+from app.models.rule import Alert, MonitoringRule  # noqa F401
+from app.models.user import User
 from app.repositories.parameter_repository import parameter_data_repository
 from app.repositories.rule_repository import rule_repository, alert_repository
 from app.schemas.rule import AlertCreateInternal
+
+
+'''
+=======================================================
+    Сервисные функции для работы с фоновым воркером    
+=======================================================
+'''
 
 
 # --- Сервис уведомлений (заглушка) ---
@@ -115,3 +125,41 @@ def process_new_parameter_data(*, db: Session, parameter_data_id: int) -> None:
         _send_notification(user_id=alert_info["user_id"], message=alert_info["alert_obj"].alert_message)
 
     print(f"[AlertService] Обработка ParameterData ID: {parameter_data_id} завершена.")
+
+
+'''
+==================================================
+    Сервисные функции для управления тревогами    
+==================================================
+'''
+
+
+def get_alerts_for_user(*, db: Session, current_user: User,
+                        skip: int = 0, limit: int = 100,
+                        only_unread: bool = False) -> List[Alert]:
+    """ Получает список тревог для указанного пользователя """
+    return alert_repository.get_by_user(
+        db=db, user_id=current_user.user_id, skip=skip, limit=limit, only_unread=only_unread
+    )
+
+
+def mark_specific_alert_as_read(*, alert_id: int, db: Session, current_user: User) -> Optional[Alert]:
+    """ Помечает конкретную тревогу как прочитанную.
+    Возвращает обновленную тревогу или None, если тревога не найдена или нет доступа. """
+    alert = alert_repository.get(db=db, alert_id=alert_id)
+    if not alert:
+        return None
+
+    if not alert.rule or alert.rule.user_id != current_user.user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Нет доступа к этой тревоге")
+
+    if alert.is_read:
+        return alert
+
+    return alert_repository.mark_as_read(db=db, db_obj=alert)
+
+
+def mark_all_user_alerts_as_read(*, db: Session, current_user: User) -> int:
+    """ Помечает все непрочитанные тревоги пользователя как прочитанные.
+    Возвращает количество помеченных тревог. """
+    return alert_repository.mark_all_as_read_for_user(db=db, user_id=current_user.user_id)
