@@ -7,7 +7,7 @@ from app.services.auth_service import get_password_hash, verify_password
 from app.schemas.user import UserCreate, UserUpdateAdmin, UserUpdatePassword
 
 
-def create_user_admin(*, db: Session, user_in: UserCreate) -> User:
+def create_user(*, db: Session, user_in: UserCreate) -> User:
     """ Создаёт нового пользователя в БД.
     Выполняет проверку на уникальность email/телефона.
     Хеширует пароль перед сохранением. """
@@ -34,8 +34,8 @@ def create_user_admin(*, db: Session, user_in: UserCreate) -> User:
     return db_user
 
 
-def change_password_user(*, db: Session, current_user: User, password_data: UserUpdatePassword) -> bool:
-    """ Изменяет пароль для текущего пользователя.
+def change_password(*, db: Session, current_user: User, password_data: UserUpdatePassword) -> bool:
+    """ Изменяет пароль для текущего пользователя (выполняется пользователем).
     Проверяет старый пароль перед установкой нового. """
     if not verify_password(password_data.current_password, current_user.password_hash):
         raise HTTPException(
@@ -50,7 +50,7 @@ def change_password_user(*, db: Session, current_user: User, password_data: User
     return True
 
 
-def update_user_admin(*, db: Session, user_to_update: User, user_in: UserUpdateAdmin) -> User:
+def update_user(*, db: Session, user_to_update: User, user_in: UserUpdateAdmin) -> User:
     """ Обновляет данные пользователя (выполняется администратором).
     Проверяет уникальность email/телефона, если они изменяются. """
     update_data = user_in.model_dump(exclude_unset=True)
@@ -77,7 +77,7 @@ def update_user_admin(*, db: Session, user_to_update: User, user_in: UserUpdateA
     return updated_user
 
 
-def get_user_admin(*, db: Session, user_id: int) -> Optional[User]:
+def get_user(*, db: Session, user_id: int) -> Optional[User]:
     """ Получает пользователя по ID (для админа) """
     return user_repository.get(db=db, user_id=user_id)
 
@@ -87,7 +87,7 @@ def get_all_users_admin(db: Session, *, skip: int = 0, limit: int = 100) -> List
     return user_repository.get_multi(db=db, skip=skip, limit=limit)
 
 
-def delete_user_admin(*, db: Session, user_id_to_delete: int) -> Optional[User]:
+def delete_user(*, db: Session, user_id_to_delete: int) -> Optional[User]:
     """ Удаляет пользователя по ID (для админа).
     Возвращает удаленный объект User или None, если пользователь не найден. """
     deleted_user = user_repository.remove(db=db, user_id=user_id_to_delete)
