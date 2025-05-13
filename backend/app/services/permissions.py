@@ -96,7 +96,7 @@ def can_user_access_shop(scope: AccessScope, target_shop_id: int, *, db: Session
     return False
 
 
-def can_user_access_line(db: Session, scope: AccessScope, target_line_id: int) -> bool:
+def can_user_access_line(scope: AccessScope, target_line_id: int, *, db: Session) -> bool:
     """ Может ли пользователь видеть данную линию? """
     if scope.scope_type == ScopeTypeEnum.ALL:
         return True
@@ -108,7 +108,7 @@ def can_user_access_line(db: Session, scope: AccessScope, target_line_id: int) -
     return False
 
 
-def can_user_access_aggregate(db: Session, scope: AccessScope, target_aggregate_id: int) -> bool:
+def can_user_access_aggregate(scope: AccessScope, target_aggregate_id: int, *, db: Session) -> bool:
     """ Может ли пользователь видеть данный агрегат? (через доступ к линии) """
     aggregate = aggregate_repository.get(db=db, aggregate_id=target_aggregate_id)
     if not aggregate:
@@ -116,7 +116,7 @@ def can_user_access_aggregate(db: Session, scope: AccessScope, target_aggregate_
     return can_user_access_line(db=db, scope=scope, target_line_id=aggregate.line_id)
 
 
-def can_user_access_actuator(db: Session, scope: AccessScope, target_actuator_id: int) -> bool:
+def can_user_access_actuator(scope: AccessScope, target_actuator_id: int, *, db: Session) -> bool:
     """ Может ли пользователь видеть данный актуатор? (через доступ к агрегату) """
     actuator = actuator_repository.get(db=db, actuator_id=target_actuator_id)
     if not actuator:
@@ -124,7 +124,7 @@ def can_user_access_actuator(db: Session, scope: AccessScope, target_actuator_id
     return can_user_access_aggregate(db=db, scope=scope, target_aggregate_id=actuator.aggregate_id)
 
 
-def can_user_access_parameter(db: Session, scope: AccessScope, target_parameter_id: int) -> bool:
+def can_user_access_parameter(scope: AccessScope, target_parameter_id: int, *, db: Session) -> bool:
     """ Может ли пользователь видеть данный параметр? (через доступ к актуатору) """
     parameter = parameter_repository.get(db=db, parameter_id=target_parameter_id)
     if not parameter:
