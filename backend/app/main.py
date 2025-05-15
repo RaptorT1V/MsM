@@ -1,15 +1,15 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routers import auth, users, settings, equipment, parameters, rules, alerts
+from app.api.routers import alerts, auth, equipment, parameters, rules, settings, users
 from app.core.config import settings as app_settings
 
 
 @asynccontextmanager
 async def lifespan(app_instance: FastAPI):
-    print("Приложение FastAPI запускается...")
+    print("PRINT:  Приложение FastAPI запускается...")
     yield
-    print("Приложение FastAPI останавливается...")
+    print("PRINT:  Приложение FastAPI останавливается...")
 
 
 # --- Описание приложения ---
