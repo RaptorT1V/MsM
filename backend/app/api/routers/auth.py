@@ -3,11 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.db.session import get_db
-from app.api.deps import get_current_user
 from app.core.config import settings
-from app.models.user import User as UserModel
 from app.schemas.token import Token
-from app.schemas.user import UserRead
 from app.services import auth_service
 
 
@@ -19,7 +16,7 @@ async def login_for_access_token(*, db: Session = Depends(get_db),
                                  form_data: OAuth2PasswordRequestForm = Depends()) -> Token:
     """ Аутентифицирует пользователя и возвращает JWT токен доступа.
     Принимает 'username' (который является email или телефоном) и 'password'. """
-    user = auth_service.authenticate_user(db, username=form_data.username, password=form_data.password)
+    user = auth_service.authenticate_user(db=db, username=form_data.username, password=form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
