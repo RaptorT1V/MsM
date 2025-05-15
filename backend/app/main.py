@@ -61,13 +61,13 @@ else:
 api_prefix = ""  # Пока без общего префикса
     # api_prefix = "/api/v1"
 
-app.include_router(auth.router, prefix=f"{api_prefix}/auth", tags=["Authentication"])
-app.include_router(users.router, prefix=f"{api_prefix}/users", tags=["Users"])
-app.include_router(settings.router, prefix=f"{api_prefix}/settings", tags=["User Settings"])
-app.include_router(equipment.router, prefix=f"{api_prefix}/equipment", tags=["Equipment Hierarchy"])
-app.include_router(parameters.router, prefix=f"{api_prefix}/parameters", tags=["Parameters & Data"])
-app.include_router(rules.router, prefix=f"{api_prefix}/rules", tags=["Monitoring Rules"])
-app.include_router(alerts.router, prefix=f"{api_prefix}/alerts", tags=["Alerts"])
+app.include_router(auth.router, prefix=f"{api_prefix}", tags=["Authentication"])
+app.include_router(users.router, prefix=f"{api_prefix}", tags=["Users"])
+app.include_router(settings.router, prefix=f"{api_prefix}", tags=["User Settings"])
+app.include_router(equipment.router, prefix=f"{api_prefix}", tags=["Equipment Hierarchy"])
+app.include_router(parameters.router, prefix=f"{api_prefix}", tags=["Parameters & Data"])
+app.include_router(rules.router, prefix=f"{api_prefix}", tags=["Monitoring Rules"])
+app.include_router(alerts.router, prefix=f"{api_prefix}", tags=["Alerts"])
 
 
 # Простой эндпоинт для проверки работоспособности API (опционально)
