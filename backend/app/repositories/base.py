@@ -21,7 +21,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     def get_multi(self, db: Session, *, skip: int = 0, limit: int = 100) -> List[ModelType]:
         """ Получает список записей из БД с возможностью пропуска (skip) и ограничения (limit).
         Используется для пагинации. """
-        statement = select(self.model).offset(skip).limit(limit)
+        statement = select(self.model).order_by(self.model.id).offset(skip).limit(limit)
         result = db.execute(statement)
         return cast(List[ModelType], result.scalars().all())
 
