@@ -33,9 +33,3 @@ async def login_for_access_token(*, db: Session = Depends(get_db),
         expires_delta=access_token_expires
     )
     return Token(access_token=access_token, token_type="bearer")
-
-
-@router.get("/me", response_model=UserRead)
-async def read_users_me(*, current_user: UserModel = Depends(get_current_user) ) -> UserModel:
-    """ Получает данные текущего аутентифицированного пользователя """
-    return current_user
