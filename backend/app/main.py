@@ -9,7 +9,7 @@ from app.core.config import settings as app_settings
 async def lifespan(app_instance: FastAPI):
     print("PRINT:  Приложение FastAPI запускается...")
     yield
-    print("PRINT:  Приложение FastAPI останавливается...")
+    print("- - - - - -\nPRINT:  Приложение FastAPI останавливается...")
 
 
 # --- Описание приложения ---
