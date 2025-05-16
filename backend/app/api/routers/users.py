@@ -79,9 +79,9 @@ async def update_user_by_admin(user_id: int, user_in: UserUpdateAdmin, db: Sessi
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user_by_admin(user_id: int, db: Session = Depends(deps.get_db),
-                               _current_admin: UserModel = Depends(deps.get_current_admin_user)):
+                               current_admin: UserModel = Depends(deps.get_current_admin_user)):
     """ Удаляет пользователя по ID (только для админов) """
-    deleted_user = user_service.delete_user(db=db, user_id_to_delete=user_id)
+    deleted_user = user_service.delete_user(db=db, user_id_to_delete=user_id, current_admin_user=current_admin)
     if not deleted_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь для удаления не найден")
     return Response(status_code=status.HTTP_204_NO_CONTENT)

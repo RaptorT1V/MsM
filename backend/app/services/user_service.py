@@ -1,6 +1,7 @@
 from typing import List, Optional
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from app.core.config import settings
 from app.models.user import User
 from app.repositories.user_repository import user_repository
 from app.services.auth_service import get_password_hash, verify_password
@@ -87,8 +88,27 @@ def get_all_users_admin(db: Session, *, skip: int = 0, limit: int = 100) -> List
     return user_repository.get_multi(db=db, skip=skip, limit=limit)
 
 
-def delete_user(*, db: Session, user_id_to_delete: int) -> Optional[User]:
+def delete_user(*, db: Session, user_id_to_delete: int, current_admin_user: User) -> Optional[User]:
     """ Удаляет пользователя по ID (для админа).
+    Администратор не может удалить сам себя и не может удалить последнего админа в системе.
     Возвращает удаленный объект User или None, если пользователь не найден. """
+    user_to_delete = user_repository.get(db=db, user_id=user_id_to_delete)
+
+    # Если должностей администратора всего 1 (например "админ" ИЛИ "директор"), такая проверка сойдёт.
+    if user_to_delete and user_to_delete.job_title and user_to_delete.job_title.job_title_name in settings.ADMIN_JOB_TITLES:
+        admin_role_id = user_to_delete.job_title_id
+        admins_count = db.query(User).filter(User.job_title_id == admin_role_id).count()
+        if admins_count <= 1:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Нельзя удалить последнего администратора в системе."
+            )
+
+    if user_id_to_delete == current_admin_user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Администратор не может удалить свой собственный аккаунт."
+        )
+
     deleted_user = user_repository.remove(db=db, user_id=user_id_to_delete)
     return deleted_user
