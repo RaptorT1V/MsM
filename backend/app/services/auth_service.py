@@ -58,17 +58,3 @@ def create_access_token(*, data: Dict[str, Any], expires_delta: Optional[timedel
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
-
-
-# Возможно, понадобится в будущем для валидации токена на стороне сервера
-'''
-def decode_token(token: str) -> Optional[Dict[str, Any]]:
-    """ Декодирует JWT токен и получает данные (payload) """
-    try:
-        payload = jwt.decode(
-             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
-        )
-        return payload
-    except JWTError:
-        return None
-'''
