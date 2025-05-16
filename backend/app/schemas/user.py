@@ -10,7 +10,7 @@ class UserBase(BaseModel):
     first_name: str
     last_name: str
     middle_name: Optional[str] = None
-    job_titles_id: int
+    job_title_id: int
 
 
 # --- Схема для создания пользователя ---
@@ -47,4 +47,4 @@ class UserUpdateAdmin(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     middle_name: Optional[str] = None
-    job_titles_id: Optional[int] = None
+    job_title_id: Optional[int] = None

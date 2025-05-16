@@ -32,7 +32,7 @@ DROP INDEX IF EXISTS ix_monitoring_rules_parameter_id;
 DROP INDEX IF EXISTS ix_alerts_rule_id;
 DROP INDEX IF EXISTS ix_alerts_parameter_data_id;
 DROP INDEX IF EXISTS ix_alerts_alert_timestamp;
-DROP INDEX IF EXISTS ix_users_job_titles_id;
+DROP INDEX IF EXISTS ix_users_job_title_id;
 
 -- Functions
 -- DROP FUNCTION IF EXISTS func CASCADE;
@@ -208,7 +208,7 @@ CREATE TABLE parameter_data (
 -- Таблица users содержит информацию о пользователях
 CREATE TABLE users (
     user_id INT GENERATED ALWAYS AS IDENTITY,
-    job_titles_id INT NOT NULL,
+    job_title_id INT NOT NULL,
     first_name VARCHAR(26) NOT NULL,
     last_name VARCHAR(36) NOT NULL,
     middle_name VARCHAR(24),
@@ -222,7 +222,7 @@ CREATE TABLE users (
     CONSTRAINT uq_users_phone UNIQUE (phone),
     CONSTRAINT ck_users_email_format CHECK (email ~* '^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$'),
     CONSTRAINT ck_users_phone_format CHECK (phone ~ '^\+7\d{10}$'),
-    CONSTRAINT fk_users_job_titles_id FOREIGN KEY (job_titles_id) REFERENCES job_titles(job_title_id) ON DELETE RESTRICT
+    CONSTRAINT fk_users_job_title_id FOREIGN KEY (job_title_id) REFERENCES job_titles(job_title_id) ON DELETE RESTRICT
 );
 
 
@@ -319,7 +319,7 @@ CREATE INDEX IF NOT EXISTS ix_alerts_parameter_data_id ON alerts (parameter_data
 CREATE INDEX IF NOT EXISTS ix_alerts_alert_timestamp ON alerts (alert_timestamp);
 
 -- Для users (job_titles)
-CREATE INDEX IF NOT EXISTS ix_users_job_titles_id ON users (job_titles_id);
+CREATE INDEX IF NOT EXISTS ix_users_job_title_id ON users (job_title_id);
 
 -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -369,7 +369,7 @@ INSERT INTO job_titles (job_title_name) VALUES
 -- Заполнение таблицы users
 --------------------------------------------
 
-INSERT INTO users (job_titles_id, last_name, first_name, middle_name, email, phone, password_hash)
+INSERT INTO users (job_title_id, last_name, first_name, middle_name, email, phone, password_hash)
 VALUES
 (
     (SELECT job_title_id FROM job_titles WHERE job_title_name = 'Директор'),
@@ -720,7 +720,7 @@ COMMENT ON TABLE parameter_data IS 'Гипертаблица (TimescaleDB) дл�
 -- Таблица пользователей
 COMMENT ON TABLE users IS 'Таблица пользователей системы мониторинга.';
     COMMENT ON COLUMN users.user_id IS 'Уникальный идентификатор пользователя.';
-    COMMENT ON COLUMN users.job_titles_id IS 'Внешний ключ на должность пользователя (job_titles.job_title_id). Может быть NULL.';
+    COMMENT ON COLUMN users.job_title_id IS 'Внешний ключ на должность пользователя (job_titles.job_title_id). Может быть NULL.';
     COMMENT ON COLUMN users.first_name IS 'Имя пользователя.';
     COMMENT ON COLUMN users.last_name IS 'Фамилия пользователя.';
     COMMENT ON COLUMN users.middle_name IS 'Отчество пользователя (может отсутствовать).';

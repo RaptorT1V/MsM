@@ -27,7 +27,7 @@ class User(Base):
     __tablename__ = "users"
 
     user_id: Mapped[int] = mapped_column(Integer, Identity(always=True), primary_key=True)
-    job_titles_id: Mapped[int] = mapped_column(Integer, ForeignKey("job_titles.job_title_id", ondelete="RESTRICT"), nullable=False, index=True)
+    job_title_id: Mapped[int] = mapped_column(Integer, ForeignKey("job_titles.job_title_id", ondelete="RESTRICT"), nullable=False, index=True)
     first_name: Mapped[str] = mapped_column(String(26), nullable=False)
     last_name: Mapped[str] = mapped_column(String(36), nullable=False)
     middle_name: Mapped[Optional[str]] = mapped_column(String(24))
