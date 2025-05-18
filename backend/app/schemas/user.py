@@ -5,11 +5,11 @@ from typing import Optional
 
 # --- Базовая схема для пользователя ---
 class UserBase(BaseModel):
-    email: EmailStr
-    phone: str = Field(pattern=r'^\+7\d{10}$')
     first_name: str
     last_name: str
     middle_name: Optional[str] = None
+    email: EmailStr
+    phone: str = Field(pattern=r'^\+7\d{10}$')
     job_title_id: int
 
 
