@@ -20,9 +20,9 @@ class UserCreate(UserBase):
 
 # --- Схема для чтения данных пользователя ---
 class UserRead(UserBase):
+    job_title_name: Optional[str] = None
     user_id: int
     created_at: datetime.datetime
-    job_title_name: Optional[str] = None
 
     model_config = {
         "from_attributes": True
