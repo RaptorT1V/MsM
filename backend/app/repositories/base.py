@@ -1,7 +1,8 @@
 from pydantic import BaseModel
-from typing import Any, cast, Dict, Generic, List, Type, TypeVar, Union
+from typing import Any, cast, Dict, Generic, List, Optional, Type, TypeVar, Union
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select
+from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.orm import Session
 from app.db.base_class import Base
 
@@ -18,10 +19,17 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     def __init__(self, model: Type[ModelType]):
         self.model = model
 
-    def get_multi(self, db: Session, *, skip: int = 0, limit: int = 100) -> List[ModelType]:
+    def get_multi(self, db: Session, *, skip: int = 0, limit: int = 100,
+                  order_by: Optional[List[ColumnElement]] = None, options: Optional[List] = None) -> List[ModelType]:
         """ Получает список записей из БД с возможностью пропуска (skip) и ограничения (limit).
         Используется для пагинации. """
-        statement = select(self.model).offset(skip).limit(limit)
+        statement = select(self.model)
+        if options:
+            statement = statement.options(*options)
+        if order_by is not None:
+            for ob_column in order_by:
+                statement = statement.order_by(ob_column)
+        statement = statement.offset(skip).limit(limit)
         result = db.execute(statement)
         return cast(List[ModelType], result.scalars().all())
 
