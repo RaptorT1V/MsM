@@ -16,7 +16,7 @@ class UserSetting(Base):
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), primary_key=True)
     theme: Mapped[str] = mapped_column(String(10), server_default='light')
     language: Mapped[str] = mapped_column(String(5), server_default='ru')
-    alarm_types: Mapped[List[AlarmTypesEnum]] = mapped_column(ARRAY(SQLEnum(AlarmTypesEnum, name='alarm_types', create_type=False)), server_default='{notification}')
+    alarm_types: Mapped[List[AlarmTypesEnum]] = mapped_column(ARRAY(SQLEnum(AlarmTypesEnum, name='alarm_types', create_type=False)), default=[AlarmTypesEnum.NOTIFICATION])
     is_rules_public: Mapped[bool] = mapped_column(Boolean, server_default='false')
 
     __table_args__ = (
