@@ -37,13 +37,19 @@ class User(Base):
     created_at: Mapped[datetime.datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now())
 
     __table_args__ = (
-        CheckConstraint("email ~* '^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$'", name='email_format'),
-        CheckConstraint("phone ~ '^\+7\d{10}$'", name='phone_format'),
+        CheckConstraint(r"email ~* '^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$'", name='email_format'),
+        CheckConstraint(r"phone ~ '^\+7\d{10}$'", name='phone_format'),
     )
 
     job_title: Mapped["JobTitle"] = relationship(back_populates="users")  # N:1 → Несколько рабочих могут иметь одну и ту же должность (но один рабочий может иметь только одну должность)
     rules: Mapped[List["MonitoringRule"]] = relationship(back_populates="user", cascade="all, delete")  # 1:N → Один пользователь может иметь несколько правил
     settings: Mapped["UserSetting"] = relationship(back_populates="user", cascade="all, delete-orphan")  # 1:1 → Одному пользователю соответствуют только одни настройки
+
+    @property
+    def job_title_name(self) -> Optional[str]:
+        if self.job_title:
+            return self.job_title.job_title_name
+        return None
 
     def __repr__(self):
         return f"<User(id={self.user_id}, email='{self.email}')>"
