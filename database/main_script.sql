@@ -77,7 +77,7 @@ CREATE EXTENSION IF NOT EXISTS timescaledb;
 
 
 -- П. alarm_types предназначено для классификации типов уведомлений при возникшей тревоге (4)
-CREATE TYPE alarm_types AS ENUM ('siren', 'flash', 'vibration', 'notification');
+CREATE TYPE alarm_types AS ENUM ('SIREN', 'FLASH', 'VIBRATION', 'NOTIFICATION');
 
 
 -- П. line_types предназначено для хранения номеров линий (4)
@@ -231,7 +231,7 @@ CREATE TABLE user_settings (
     user_id INT,
     theme VARCHAR(10) DEFAULT 'light',
     language VARCHAR(5) DEFAULT 'ru',
-    alarm_types alarm_types[] DEFAULT '{notification}',
+    alarm_types alarm_types[] DEFAULT '{NOTIFICATION}',
     is_rules_public BOOLEAN DEFAULT FALSE,
 
     CONSTRAINT pk_user_settings PRIMARY KEY (user_id),
