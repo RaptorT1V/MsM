@@ -48,17 +48,6 @@ async def read_parameters_for_actuator(*, actuator_id: int, db: Session = Depend
     return parameters
 
 
-@router.get("/{parameter_id}/details/", response_model=ParameterRead)
-async def read_parameter_details(*, parameter_id: int, db: Session = Depends(deps.get_db),
-                                 current_user: UserModel = Depends(deps.get_current_user)) -> Parameter:
-    """ Получает детальную информацию о конкретном параметре.
-    Доступ проверяется на уровне сервиса. """
-    parameter = parameter_service.get_parameter_details(
-        db=db, current_user=current_user, parameter_id=parameter_id
-    )
-    return parameter
-
-
 '''
 ============================================
     Эндпоинты для данных временных рядов
