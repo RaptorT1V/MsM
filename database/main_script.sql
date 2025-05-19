@@ -253,6 +253,7 @@ CREATE TABLE monitoring_rules (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT pk_monitoring_rules PRIMARY KEY (rule_id),
+    CONSTRAINT uq_monitoring_rules_user_parameter_operator_threshold UNIQUE (user_id, parameter_id, comparison_operator, threshold),
     CONSTRAINT ck_monitoring_rules_comparison_operator CHECK (comparison_operator IN ('>', '<', '=', '>=', '<=')),
     CONSTRAINT fk_monitoring_rules_user_id FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
     CONSTRAINT fk_monitoring_rules_parameter_id FOREIGN KEY (parameter_id) REFERENCES parameters(parameter_id) ON DELETE CASCADE
@@ -300,7 +301,7 @@ SELECT add_retention_policy('parameter_data', INTERVAL '6 months');
 
 /*
     = = = = = = = =
-        Indexes    
+        Indexes
     = = = = = = = =
 */
 
@@ -325,7 +326,7 @@ CREATE INDEX IF NOT EXISTS ix_users_job_title_id ON users (job_title_id);
 
 /*
     = = = = = = = = =
-        Functions    
+        Functions
     = = = = = = = = =
 */
 
@@ -335,7 +336,7 @@ CREATE INDEX IF NOT EXISTS ix_users_job_title_id ON users (job_title_id);
 
 /*
     = = = = = = = = =
-        Triggers    
+        Triggers
     = = = = = = = = =
 */
 
@@ -417,15 +418,15 @@ VALUES
 ------------------------------------------
 
 INSERT INTO shops (shop_name) VALUES
-('Агломерационный цех'), 
-('Доменный цех'), 
-('Коксохимический цех'), 
-('Кислородно-компрессорный цех'), 
-('Листопрокатный цех'), 
-('Теплоэлектроцентраль'), 
-('Трубопрокатный цех'), 
-('Фасонно-литейный цех'), 
-('Цех водоснабжения'), 
+('Агломерационный цех'),
+('Доменный цех'),
+('Коксохимический цех'),
+('Кислородно-компрессорный цех'),
+('Листопрокатный цех'),
+('Теплоэлектроцентраль'),
+('Трубопрокатный цех'),
+('Фасонно-литейный цех'),
+('Цех водоснабжения'),
 ('Электросталеплавильный цех');
 
 ----------------------------------------------------
@@ -464,7 +465,7 @@ INSERT INTO parameter_types (parameter_type_name, parameter_unit) VALUES
 ('Мощность', 'кВт'),
 -- Температурные параметры
 ('Температура обмотки', '℃'),
-('Температура масла', '℃'), 
+('Температура масла', '℃'),
 ('Температура сердечника статора', '℃'),
 ('Температура сердечника индуктора', '℃'),
 ('Температура опорного подшипника', '℃'),
@@ -560,7 +561,7 @@ inserted_actuators AS (
 -- №4: Определить данные для вставки параметров
 actuator_parameters_data(shop_name, line_enum, agg_type_name, act_type_name, param_type_name) AS (
    VALUES
-        -- Аглоцех | 1-ая линия 
+        -- Аглоцех | 1-ая линия
         ('Агломерационный цех', 'Первая'::line_types, 'Окомкователь', 'Электродвигатель переменного тока (3ф)', 'Электрический ток'),
         ('Агломерационный цех', 'Первая'::line_types, 'Окомкователь', 'Электродвигатель переменного тока (3ф)', 'Температура обмотки'),
         ('Агломерационный цех', 'Первая'::line_types, 'Окомкователь', 'Редуктор', 'Температура масла'),
@@ -582,7 +583,7 @@ actuator_parameters_data(shop_name, line_enum, agg_type_name, act_type_name, par
         ('Агломерационный цех', 'Первая'::line_types, 'Эксгаустер', 'Нагнетатель', 'Температура опорного подшипника'),
         ('Агломерационный цех', 'Первая'::line_types, 'Эксгаустер', 'Нагнетатель', 'Вибрация опорного подшипника'),
         ('Агломерационный цех', 'Первая'::line_types, 'Эксгаустер', 'Система смазки', 'Давление масла в системе'),
-        -- Аглоцех | 2-ая линия 
+        -- Аглоцех | 2-ая линия
         ('Агломерационный цех', 'Вторая'::line_types, 'Агломашина', 'Электродвигатель постоянного тока', 'Электрический ток'),
         ('Агломерационный цех', 'Вторая'::line_types, 'Агломашина', 'Электродвигатель постоянного тока', 'Температура сердечника индуктора'),
         ('Агломерационный цех', 'Вторая'::line_types, 'Агломашина', 'Редуктор', 'Температура масла'),
@@ -627,7 +628,7 @@ ON CONFLICT (actuator_id, parameter_type_id) DO NOTHING;
 
 /*
     = = = = = = = = = = = =
-        Roles & Grants       
+        Roles & Grants
     = = = = = = = = = = = =
 */
 
@@ -749,7 +750,7 @@ COMMENT ON TABLE monitoring_rules IS 'Таблица правил монитор
     COMMENT ON COLUMN monitoring_rules.threshold IS 'Пороговое значение для срабатывания правила.';
     COMMENT ON COLUMN monitoring_rules.is_active IS 'Флаг активности правила (включено/выключено).';
     COMMENT ON COLUMN monitoring_rules.created_at IS 'Временная метка создания правила.';
-
+    COMMENT ON CONSTRAINT uq_monitoring_rules_user_parameter_operator_threshold ON monitoring_rules IS 'Гарантия пиздюлей для пользователя, если он захочет продублировать правило: создать такое же для того же параметра с тем же оператором сравнения и тем же пороговым значением';
 
 -- Таблица тревог
 COMMENT ON TABLE alerts IS 'Таблица журнала тревог (сработавших правил мониторинга).';

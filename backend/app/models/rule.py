@@ -1,6 +1,6 @@
 import datetime
 from typing import List, Optional, TYPE_CHECKING
-from sqlalchemy import BigInteger, Boolean, CheckConstraint, Float, ForeignKey, func, Identity, Integer, String, TIMESTAMP
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, Float, ForeignKey, func, Identity, Integer, String, TIMESTAMP, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base_class import Base
 
@@ -24,6 +24,8 @@ class MonitoringRule(Base):
 
     __table_args__ = (
         CheckConstraint("comparison_operator IN ('>', '<', '=', '>=', '<=')", name='comparison_operator'),
+        UniqueConstraint('user_id', 'parameter_id', 'comparison_operator', 'threshold',
+                         name='uq_monitoring_rules_user_parameter_operator_threshold'),
     )
 
     user: Mapped["User"] = relationship(back_populates="rules")  # N:1 → Несколько правил могут принадлежать одному пользователю (но у одного правила может быть только один владелец)
