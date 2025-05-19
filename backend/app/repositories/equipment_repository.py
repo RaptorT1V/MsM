@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import cast, List, Optional
-from sqlalchemy import select
+from sqlalchemy import distinct, select
 from sqlalchemy.orm import Session
 from app.models.equipment import Shop, AggregateType, ActuatorType, Line, Aggregate, Actuator
 from app.models.enums import LineTypesEnum
@@ -120,6 +120,28 @@ class LineRepository(CRUDBase[Line, BaseModel, BaseModel]):
         statement = select(self.model).where(self.model.shop_id == shop_id, self.model.line_type == line_type)
         result = db.execute(statement)
         return result.scalar_one_or_none()
+
+    def get_shop_ids_for_lines(self, db: Session, *, line_ids: List[int]) -> List[int]:
+        """ Получает список уникальных ID цехов для заданного списка ID линий """
+        if not line_ids:
+            return []
+        statement = select(distinct(self.model.shop_id)).where(self.model.line_id.in_(line_ids))
+        result = db.execute(statement)
+        return cast(List[int], result.scalars().all())
+
+    def get_by_shop_and_ids(self, db: Session, *, shop_id: int, allowed_line_ids: List[int], skip: int = 0, limit: int = 100) -> List[Line]:
+        """ Получает линии для конкретного цеха, но только те, что есть в списке allowed_line_ids.
+        Используется для пользователей с доступом ScopeTypeEnum.LINE. """
+        if not allowed_line_ids:
+            return []
+        statement = (
+            select(self.model)
+            .where(self.model.shop_id == shop_id, self.model.line_id.in_(allowed_line_ids))
+            .offset(skip)
+            .limit(limit)
+        )
+        result = db.execute(statement)
+        return cast(List[Line], result.scalars().all())
 
     def remove(self, db: Session, *, line_id: int) -> Optional[Line]:
         """ Удаляет линию по ID (с каскадным удалением агрегатов) """
