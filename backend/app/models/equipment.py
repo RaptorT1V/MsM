@@ -68,8 +68,10 @@ class Line(Base):
 
     line_id: Mapped[int] = mapped_column(Integer, Identity(always=True), primary_key=True)
     shop_id: Mapped[int] = mapped_column(Integer, ForeignKey("shops.shop_id", ondelete="CASCADE"), nullable=False)
-    line_type: Mapped[LineTypesEnum] = mapped_column(SQLEnum(LineTypesEnum, name='line_types', create_type=False), nullable=False)
-
+    line_type: Mapped[LineTypesEnum] = mapped_column(SQLEnum(LineTypesEnum, name='line_types',
+                                                             create_type=False, native_enum=False,
+                                                             values_callable=lambda x: [e.value for e in x]),
+                                                     nullable=False)
     shop: Mapped["Shop"] = relationship(back_populates="lines")  # N:1 → Несколько линий находятся в одном цехе (но одна линия не может быть в двух цехах одновременно)
     aggregates: Mapped[List["Aggregate"]] = relationship(back_populates="line")  # 1:N → На одной линии установлены несколько агрегатов
 
