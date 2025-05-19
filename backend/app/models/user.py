@@ -34,7 +34,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(60), nullable=False, unique=True)
     phone: Mapped[str] = mapped_column(CHAR(12), nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(String(228), nullable=False)
-    created_at: Mapped[datetime.datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime.datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
     __table_args__ = (
         CheckConstraint(r"email ~* '^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$'", name='email_format'),

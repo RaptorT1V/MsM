@@ -51,7 +51,7 @@ class ParameterData(Base):
     parameter_data_id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=False)
     parameter_id: Mapped[int] = mapped_column(Integer, ForeignKey("parameters.parameter_id", ondelete="CASCADE"), nullable=False, primary_key=True)
     parameter_value: Mapped[float] = mapped_column(Float(precision=8), nullable=False)
-    data_timestamp: Mapped[datetime.datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), primary_key=True)
+    data_timestamp: Mapped[datetime.datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, primary_key=True, server_default=func.now())
 
     parameter: Mapped["Parameter"] = relationship(back_populates="parameter_data")  # N:1 → Много записей данных для одного параметра
 

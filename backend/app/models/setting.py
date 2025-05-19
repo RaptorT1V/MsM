@@ -14,12 +14,12 @@ class UserSetting(Base):
     __tablename__ = "user_settings"
 
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), primary_key=True)
-    theme: Mapped[str] = mapped_column(String(10), server_default='light')
-    language: Mapped[str] = mapped_column(String(5), server_default='ru')
+    theme: Mapped[str] = mapped_column(String(10), nullable=False, server_default='light')
+    language: Mapped[str] = mapped_column(String(5), nullable=False, server_default='ru')
     alarm_types: Mapped[List[AlarmTypesEnum]] = mapped_column(ARRAY(SQLEnum(AlarmTypesEnum, name='alarm_types',
                                                                             create_type=False)),
-                                                              server_default=AlarmTypesEnum.NOTIFICATION)
-    is_rules_public: Mapped[bool] = mapped_column(Boolean, server_default='false')
+                                                              nullable=False, server_default=AlarmTypesEnum.NOTIFICATION)
+    is_rules_public: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default='false')
 
     __table_args__ = (
         CheckConstraint("theme IN ('light', 'dark')", name='theme_option'),

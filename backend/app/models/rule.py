@@ -17,10 +17,10 @@ class MonitoringRule(Base):
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
     parameter_id: Mapped[int] = mapped_column(Integer, ForeignKey("parameters.parameter_id", ondelete="CASCADE"), nullable=False, index=True)
     rule_name: Mapped[Optional[str]] = mapped_column(String(50))
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default='true')
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default='true')
     comparison_operator: Mapped[str] = mapped_column(String(2), nullable=False)
     threshold: Mapped[float] = mapped_column(Float(precision=8), nullable=False)
-    created_at: Mapped[datetime.datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime.datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
     __table_args__ = (
         CheckConstraint("comparison_operator IN ('>', '<', '=', '>=', '<=')", name='comparison_operator'),
@@ -43,9 +43,9 @@ class Alert(Base):
     alert_id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
     rule_id: Mapped[int] = mapped_column(Integer, ForeignKey("monitoring_rules.rule_id", ondelete="CASCADE"), nullable=False, index=True)
     parameter_data_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
-    alert_timestamp: Mapped[datetime.datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now(), index=True)
     alert_message: Mapped[Optional[str]] = mapped_column(String(150))
-    is_read: Mapped[bool] = mapped_column(Boolean, default=False, server_default='false')
+    is_read: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default='false')
+    alert_timestamp: Mapped[datetime.datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, index=True, server_default=func.now())
 
     rule: Mapped["MonitoringRule"] = relationship(back_populates="alerts")  # N:1 → Несколько тревог может быть вызвано одним правилом [но одна тревога (в плане alert_id) не может быть вызвана несколькими правилами сразу]
 

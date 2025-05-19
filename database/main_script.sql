@@ -55,7 +55,7 @@ END $$;
 -- Extensions
 DROP EXTENSION IF EXISTS pgcrypto;
 DROP EXTENSION IF EXISTS timescaledb;
-
+DROP TABLE IF EXISTS alembic_version CASCADE;
 
 /*
     = = = = = = = = = =
@@ -198,7 +198,7 @@ CREATE TABLE parameter_data (
     parameter_data_id BIGINT GENERATED ALWAYS AS IDENTITY,
     parameter_id INT NOT NULL,
     parameter_value FLOAT8 NOT NULL,
-    data_timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    data_timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
     -- CONSTRAINT pk_parameter_data PRIMARY KEY (parameter_data_id, data_timestamp), -- > PK для оптимизации TimescaleDB создастся позже (после создания гипер-таблицы)
     CONSTRAINT fk_parameter_data_parameter_id FOREIGN KEY (parameter_id) REFERENCES parameters(parameter_id) ON DELETE CASCADE
@@ -215,7 +215,7 @@ CREATE TABLE users (
     email VARCHAR(60) NOT NULL,
     phone CHAR(12) NOT NULL,
     password_hash VARCHAR(228) NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT pk_users PRIMARY KEY (user_id),
     CONSTRAINT uq_users_email UNIQUE (email),
@@ -229,10 +229,10 @@ CREATE TABLE users (
 -- Таблица user_settings содержит настройки пользователей
 CREATE TABLE user_settings (
     user_id INT,
-    theme VARCHAR(10) DEFAULT 'light',
-    language VARCHAR(5) DEFAULT 'ru',
-    alarm_types alarm_types[] DEFAULT '{NOTIFICATION}',
-    is_rules_public BOOLEAN DEFAULT FALSE,
+    theme VARCHAR(10) NOT NULL DEFAULT 'light',
+    language VARCHAR(5) NOT NULL DEFAULT 'ru',
+    alarm_types alarm_types[] NOT NULL DEFAULT '{NOTIFICATION}',
+    is_rules_public BOOLEAN NOT NULL DEFAULT FALSE,
 
     CONSTRAINT pk_user_settings PRIMARY KEY (user_id),
     CONSTRAINT ck_user_settings_theme_option CHECK (theme IN ('light', 'dark')),
@@ -249,8 +249,8 @@ CREATE TABLE monitoring_rules (
     rule_name VARCHAR(50),
     comparison_operator VARCHAR(2) NOT NULL,
     threshold FLOAT8 NOT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT pk_monitoring_rules PRIMARY KEY (rule_id),
     CONSTRAINT uq_monitoring_rules_user_parameter_operator_threshold UNIQUE (user_id, parameter_id, comparison_operator, threshold),
@@ -266,8 +266,8 @@ CREATE TABLE alerts (
     rule_id INT NOT NULL,
     parameter_data_id BIGINT NOT NULL,
     alert_message VARCHAR(150),
-    is_read BOOLEAN DEFAULT FALSE,
-    alert_timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    alert_timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT pk_alerts PRIMARY KEY (alert_id),
     CONSTRAINT fk_alerts_rule_id FOREIGN KEY (rule_id) REFERENCES monitoring_rules(rule_id) ON DELETE CASCADE
