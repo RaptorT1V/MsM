@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from app.core.config import settings
 from app.models.rule import MonitoringRule
 from app.models.user import User
 from app.repositories.rule_repository import rule_repository
@@ -16,57 +17,67 @@ from app.schemas.rule import RuleCreate, RuleUpdate
 
 
 def get_rule(*, db: Session, rule_id: int, current_user: User) -> Optional[MonitoringRule]:
-    """ Получает конкретное правило по ID, если оно принадлежит текущему пользователю """
+    """ Получает конкретное правило по ID, если оно принадлежит текущему пользователю (админам можно всё) """
     rule = rule_repository.get(db=db, rule_id=rule_id)
-    if not rule or rule.user_id != current_user.user_id:
+    if not rule:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Правило не найдено или у вас нет к нему доступа"
+            detail="Правило не найдено"
+        )
+
+    is_admin = False
+    if current_user.job_title and current_user.job_title.job_title_name in settings.ADMIN_JOB_TITLES:
+        is_admin = True
+
+    if rule.user_id != current_user.user_id and not is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="У вас нет доступа к этому правилу"
         )
     return rule
 
 
 def get_user_rules(*, db: Session, current_user: User, skip: int = 0, limit: int = 100) -> List[MonitoringRule]:
     """ Получает список правил текущего пользователя с пагинацией """
-    return rule_repository.get_by_user(db=db, user_id=current_user.user_id, skip=skip, limit=limit)
+    rules = rule_repository.get_by_user(db=db, user_id=current_user.user_id, skip=skip, limit=limit)
+    return rules
 
 
 def create_rule(*, db: Session, rule_in: RuleCreate, current_user: User) -> MonitoringRule:
     """ Создаёт новое правило мониторинга для текущего пользователя.
     Проверяет право доступа пользователя к указанному параметру. """
-    # 1. Проверяет доступ к параметру, для которого создаётся правило
     scope = get_user_access_scope(db=db, user=current_user)
     if not can_user_access_parameter(db=db, scope=scope, target_parameter_id=rule_in.parameter_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Нет прав для создания правила для этого параметра"
         )
-    # 2. Вызывает метод репозитория для создания правила с указанием владельца
+
     new_rule = rule_repository.create_with_owner(db=db, obj_in=rule_in, user_id=current_user.user_id)
     return new_rule
 
 
 def update_rule(*, db: Session, rule_id: int, rule_in: RuleUpdate, current_user: User) -> Optional[MonitoringRule]:
     """ Обновляет правило, если оно принадлежит текущему пользователю """
-    # 1. Получает правило и проверяет права владения
     db_rule = get_rule(db=db, rule_id=rule_id, current_user=current_user)
-    # 2. Проверяет, не пытается ли пользователь сменить parameter_id
+
     update_data = rule_in.model_dump(exclude_unset=True)
     if "parameter_id" in update_data and update_data["parameter_id"] != db_rule.parameter_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Изменение параметра, к которому привязано правило, не допускается."
         )
-    # 3. Вызывает универсальный update из репозитория
-    return rule_repository.update(db=db, db_obj=db_rule, obj_in=update_data)
+
+    updated_rule = rule_repository.update(db=db, db_obj=db_rule, obj_in=update_data)
+    return updated_rule
 
 
 def delete_rule(*, db: Session, rule_id: int, current_user: User) -> Optional[MonitoringRule]:
     """ Удаляет правило, если оно принадлежит текущему пользователю """
-    # 1. Получает правило и проверяет права владения
-    db_rule = get_rule(db=db, rule_id=rule_id, current_user=current_user)  # noqa F841: Неиспользуемая переменная нужна для проверки прав доступа
-    # 2. Удаляет правило через репозиторий
-    return rule_repository.remove(db=db, rule_id=rule_id)
+    db_rule_to_delete = get_rule(db=db, rule_id=rule_id, current_user=current_user)
+
+    deleted_rule = rule_repository.remove(db=db, rule_id=db_rule_to_delete.rule_id)
+    return deleted_rule
 
 
 '''
@@ -80,6 +91,7 @@ def export_user_rules(*, db: Session, current_user: User) -> List[Dict[str, Any]
     """ Формирует данные правил пользователя для экспорта """
     rules = get_user_rules(db=db, current_user=current_user, limit=10000)
     export_data = []
+
     for rule in rules:
         export_data.append({
             "parameter_id": rule.parameter_id,
