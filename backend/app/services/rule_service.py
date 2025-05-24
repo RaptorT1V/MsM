@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.rule import MonitoringRule
@@ -53,8 +54,29 @@ def create_rule(*, db: Session, rule_in: RuleCreate, current_user: User) -> Moni
             detail="Нет прав для создания правила для этого параметра"
         )
 
-    new_rule = rule_repository.create_with_owner(db=db, obj_in=rule_in, user_id=current_user.user_id)
-    return new_rule
+    try:
+        new_rule = rule_repository.create_with_owner(db=db, obj_in=rule_in, user_id=current_user.user_id)
+        return new_rule
+    except IntegrityError as e:
+        db.rollback()
+        if hasattr(e.orig, 'diag') and hasattr(e.orig.diag, 'constraint_name') and \
+           e.orig.diag.constraint_name == 'uq_monitoring_rules_user_parameter_operator_threshold':  # noqa
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Правило с такими параметрами (параметр, оператор, порог) для вас уже существует."
+            )
+        print(f"IntegrityError during rule creation: {e.orig}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Ошибка базы данных при создании правила."
+        )
+    except Exception as e:
+        db.rollback()
+        print(f"Unexpected error during rule creation: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Непредвиденная ошибка при создании правила."
+        )
 
 
 def update_rule(*, db: Session, rule_id: int, rule_in: RuleUpdate, current_user: User) -> Optional[MonitoringRule]:
