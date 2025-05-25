@@ -11,3 +11,4 @@ class Token(BaseModel):
 # --- Схема для данных, хранящихся в payload JWT-токена ---
 class TokenData(BaseModel):
     user_id: Optional[int] = None
+    role: Optional[str] = None

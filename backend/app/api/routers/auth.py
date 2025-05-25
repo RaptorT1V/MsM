@@ -26,7 +26,8 @@ async def login_for_access_token(*, db: Session = Depends(get_db),
     # Создаёт токен доступа
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = auth_service.create_access_token(
-        data={"sub": str(user.user_id)},
+        db=db,
+        user_id=user.user_id,
         expires_delta=access_token_expires
     )
     return Token(access_token=access_token, token_type="bearer")

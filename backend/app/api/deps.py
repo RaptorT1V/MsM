@@ -26,9 +26,11 @@ async def get_current_user(db: Session = Depends(get_db), token: str = Depends(o
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id_from_sub = payload.get("sub")
+        user_role_from_payload = payload.get("role")
+
         if user_id_from_sub is None:
             raise credentials_exception
-        token_data = TokenData(user_id=int(user_id_from_sub))
+        token_data = TokenData(user_id=int(user_id_from_sub), role=user_role_from_payload)
     except JWTError:
         raise credentials_exception
     except ValidationError:

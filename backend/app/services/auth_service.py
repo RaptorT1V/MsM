@@ -47,9 +47,16 @@ def authenticate_user(*, db: Session, username: str, password: str) -> Optional[
 '''
 
 
-def create_access_token(*, data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(*, db: Session, user_id: int, expires_delta: Optional[timedelta] = None) -> str:
     """ Генерирует новый JWT-токен доступа """
-    to_encode = data.copy()
+    to_encode = {"sub": str(user_id)}
+
+    user = user_repository.get(db, user_id=user_id)
+    if user and user.job_title:
+        to_encode["role"] = user.job_title.job_title_name
+    else:
+        to_encode["role"] = None
+
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
