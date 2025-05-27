@@ -43,7 +43,7 @@ class Alert(Base):
     alert_id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
     rule_id: Mapped[int] = mapped_column(Integer, ForeignKey("monitoring_rules.rule_id", ondelete="CASCADE"), nullable=False, index=True)
     parameter_data_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
-    alert_message: Mapped[Optional[str]] = mapped_column(String(150))
+    alert_message: Mapped[Optional[str]] = mapped_column(String(250))
     is_read: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default='false')
     alert_timestamp: Mapped[datetime.datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, index=True, server_default=func.now())
 

@@ -54,7 +54,7 @@ class RuleUpdate(BaseModel):
 class AlertBase(BaseModel):
     rule_id: int
     parameter_data_id: int
-    alert_message: Optional[str] = Field(None, max_length=150)
+    alert_message: Optional[str] = Field(None, max_length=250)
     is_read: bool = False
     alert_timestamp: datetime.datetime
 
