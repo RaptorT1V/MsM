@@ -28,10 +28,10 @@ class AccessScope(BaseModel):
 ROLE_SCOPES_CONFIG: Dict[str, Dict[str, Any]] = {
     "Директор":                         {"scope_type": ScopeTypeEnum.ALL},
     "Главный аналитик":                 {"scope_type": ScopeTypeEnum.ALL},
-    "Начальник аглофабрики":            {"scope_type": ScopeTypeEnum.SHOP, "shop_name": "Агломерационный цех"},
+    "Начальник аглоцеха":            {"scope_type": ScopeTypeEnum.SHOP, "shop_name": "Агломерационный цех"},
     "Начальник ЭСПЦ":                   {"scope_type": ScopeTypeEnum.SHOP, "shop_name": "Электросталеплавильный цех"},
-    "Аналитик 1-ой линии аглофабрики":  {"scope_type": ScopeTypeEnum.LINE, "shop_name": "Агломерационный цех", "line_type": LineTypesEnum.FIRST},
-    "Аналитик 2-ой линии аглофабрики":  {"scope_type": ScopeTypeEnum.LINE, "shop_name": "Агломерационный цех", "line_type": LineTypesEnum.SECOND},
+    "Аналитик 1-ой линии аглоцеха":  {"scope_type": ScopeTypeEnum.LINE, "shop_name": "Агломерационный цех", "line_type": LineTypesEnum.FIRST},
+    "Аналитик 2-ой линии аглоцеха":  {"scope_type": ScopeTypeEnum.LINE, "shop_name": "Агломерационный цех", "line_type": LineTypesEnum.SECOND},
     "Аналитик 1-ой линии ЭСПЦ":         {"scope_type": ScopeTypeEnum.LINE, "shop_name": "Электросталеплавильный цех", "line_type": LineTypesEnum.FIRST},
     "Аналитик 2-ой линии ЭСПЦ":         {"scope_type": ScopeTypeEnum.LINE, "shop_name": "Электросталеплавильный цех", "line_type": LineTypesEnum.SECOND},
     # TODO: В БУДУЩЕМ нужно будет добавить другие должности

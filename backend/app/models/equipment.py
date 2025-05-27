@@ -36,7 +36,7 @@ class AggregateType(Base):
     aggregate_type_id: Mapped[int] = mapped_column(Integer, Identity(always=True), primary_key=True)
     aggregate_type_name: Mapped[str] = mapped_column(String(55), nullable=False, unique=True)
 
-    aggregates: Mapped[List["Aggregate"]] = relationship(back_populates="aggregate_type")  # 1:N → Один тип агрегата содержит несколько конкретных агрегатов этого типа (например, тип агрегата = "агломашина", а этих агломашин будет 4 в аглофабрике, по 1 на каждую линию)
+    aggregates: Mapped[List["Aggregate"]] = relationship(back_populates="aggregate_type")  # 1:N → Один тип агрегата содержит несколько конкретных агрегатов этого типа (например, тип агрегата = "агломашина", а этих агломашин будет 4 в аглоцехе, по 1 на каждую линию)
 
     def __repr__(self):
         return f"<AggregateType(id={self.aggregate_type_id}, name='{self.aggregate_type_name}')>"
