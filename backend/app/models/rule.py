@@ -18,7 +18,7 @@ class MonitoringRule(Base):
     parameter_id: Mapped[int] = mapped_column(Integer, ForeignKey("parameters.parameter_id", ondelete="CASCADE"), nullable=False, index=True)
     rule_name: Mapped[Optional[str]] = mapped_column(String(110))
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default='true')
-    comparison_operator: Mapped[str] = mapped_column(String(2), nullable=False)
+    comparison_operator: Mapped[str] = mapped_column(String(1), nullable=False)
     threshold: Mapped[float] = mapped_column(Float(precision=8), nullable=False)
     created_at: Mapped[datetime.datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
