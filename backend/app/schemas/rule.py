@@ -13,7 +13,7 @@ from typing import Optional
 # --- Базовая схема для правила ---
 class RuleBase(BaseModel):
     parameter_id: int
-    rule_name: Optional[str] = Field(None, max_length=50)
+    rule_name: Optional[str] = Field(None, max_length=99)
     comparison_operator: str = Field(..., pattern=r"^(<|>)$", max_length=2)
     threshold: float
     is_active: bool = True
@@ -37,7 +37,7 @@ class RuleRead(RuleBase):
 
 # --- Схема для обновления правила ---
 class RuleUpdate(BaseModel):
-    rule_name: Optional[str] = Field(None, max_length=50)
+    rule_name: Optional[str] = Field(None, max_length=99)
     comparison_operator: Optional[str] = Field(default=None, pattern=r"^(<|>)$", max_length=2)
     threshold: Optional[float] = None
     is_active: Optional[bool] = None

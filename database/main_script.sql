@@ -246,7 +246,7 @@ CREATE TABLE monitoring_rules (
     rule_id INT GENERATED ALWAYS AS IDENTITY,
     user_id INT NOT NULL,
     parameter_id INT NOT NULL,
-    rule_name VARCHAR(50),
+    rule_name VARCHAR(99),
     comparison_operator VARCHAR(2) NOT NULL,
     threshold FLOAT8 NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
