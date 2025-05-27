@@ -23,7 +23,7 @@ class MonitoringRule(Base):
     created_at: Mapped[datetime.datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
     __table_args__ = (
-        CheckConstraint("comparison_operator IN ('>', '<', '=', '>=', '<=')", name='comparison_operator'),
+        CheckConstraint("comparison_operator IN ('>', '<')", name='comparison_operator'),
         UniqueConstraint('user_id', 'parameter_id', 'comparison_operator', 'threshold',
                          name='uq_monitoring_rules_user_parameter_operator_threshold'),
     )

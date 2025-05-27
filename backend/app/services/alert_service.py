@@ -68,18 +68,11 @@ def process_new_parameter_data(parameter_data_id: int) -> None:
                 rule_violated = True
             elif operator == '<' and value_to_check < threshold:
                 rule_violated = True
-            elif operator == '=' and value_to_check == threshold:
-                rule_violated = True
-            elif operator == '>=' and value_to_check >= threshold:
-                rule_violated = True
-            elif operator == '<=' and value_to_check <= threshold:
-                rule_violated = True
 
             if rule_violated:
                 print(f"[AlertService] Правило ID {rule.rule_id} НАРУШЕНО для ParameterData ID {parameter_data_id}")
-                # --- Формирование сообщения тревоги ---
+                # Формирование сообщения тревоги
                 try:
-                    # Использует предзагруженные данные для формирования сообщения
                     param = data_entry.parameter
                     param_type = param.parameter_type
                     actuator = param.actuator
@@ -105,15 +98,14 @@ def process_new_parameter_data(parameter_data_id: int) -> None:
                     print(f"[AlertService] Ошибка при формировании сообщения: {e}")
                     alert_message = f"Тревога по правилу ID {rule.rule_id}: значение {value_to_check:.2f} {operator} {threshold}"
 
-                # --- Подготовка данных для создания Alert ---
+                # Подготовка данных для создания Alert
                 alert_create_data = AlertCreateInternal(
                     rule_id=rule.rule_id,
                     parameter_data_id=data_entry.parameter_data_id,
                     alert_message=alert_message
                 )
 
-                # --- Создание записи Alert ---
-                # Использует унаследованный create из AlertRepository
+                # Создание записи Alert
                 try:
                     created_alert = alert_repository.create(db=db, obj_in=alert_create_data)
                     alerts_created_this_run.append({"alert_obj": created_alert, "user_id": rule.user_id})

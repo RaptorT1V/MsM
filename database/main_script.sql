@@ -254,7 +254,7 @@ CREATE TABLE monitoring_rules (
 
     CONSTRAINT pk_monitoring_rules PRIMARY KEY (rule_id),
     CONSTRAINT uq_monitoring_rules_user_parameter_operator_threshold UNIQUE (user_id, parameter_id, comparison_operator, threshold),
-    CONSTRAINT ck_monitoring_rules_comparison_operator CHECK (comparison_operator IN ('>', '<', '=', '>=', '<=')),
+    CONSTRAINT ck_monitoring_rules_comparison_operator CHECK (comparison_operator IN ('>', '<')),
     CONSTRAINT fk_monitoring_rules_user_id FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
     CONSTRAINT fk_monitoring_rules_parameter_id FOREIGN KEY (parameter_id) REFERENCES parameters(parameter_id) ON DELETE CASCADE
 );
@@ -746,7 +746,7 @@ COMMENT ON TABLE monitoring_rules IS 'Таблица правил монитор
     COMMENT ON COLUMN monitoring_rules.user_id IS 'Внешний ключ на пользователя, создавшего правило (users.user_id).';
     COMMENT ON COLUMN monitoring_rules.parameter_id IS 'Внешний ключ на параметр (связку "актуатор-тип параметра"), для которого создано правило (parameters.parameter_id).';
     COMMENT ON COLUMN monitoring_rules.rule_name IS 'Необязательное пользовательское название правила.';
-    COMMENT ON COLUMN monitoring_rules.comparison_operator IS 'Оператор сравнения (">", "<", "=", ">=", "<=").';
+    COMMENT ON COLUMN monitoring_rules.comparison_operator IS 'Оператор сравнения (">" и "<").';
     COMMENT ON COLUMN monitoring_rules.threshold IS 'Пороговое значение для срабатывания правила.';
     COMMENT ON COLUMN monitoring_rules.is_active IS 'Флаг активности правила (включено/выключено).';
     COMMENT ON COLUMN monitoring_rules.created_at IS 'Временная метка создания правила.';
