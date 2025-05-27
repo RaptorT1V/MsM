@@ -78,9 +78,9 @@ async def export_my_rules(*, db: Session = Depends(deps.get_db),
 
 
 @router.post("/me/import/", response_model=Dict[str, int])
-async def import_my_rules(*, upload_file: UploadFile = File(...), db: Session = Depends(deps.get_db),
+async def import_rules(*, upload_file: UploadFile = File(...), db: Session = Depends(deps.get_db),
                           current_user: UserModel = Depends(deps.get_current_user)) -> Dict[str, int]:
-    """ Импортирует правила для текущего пользователя из JSON файла.
+    """ Импортирует правила из JSON файла.
     Файл должен содержать список объектов правил.
     Сервис проверяет права доступа к параметрам для каждого импортируемого правила.
     Возвращает количество импортированных и пропущенных правил.
