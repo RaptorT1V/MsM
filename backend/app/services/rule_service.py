@@ -127,7 +127,7 @@ def export_user_rules(*, db: Session, current_user: User) -> List[Dict[str, Any]
 
 
 def import_user_rules(*, db: Session, current_user: User, rules_data: List[Dict[str, Any]]) -> Dict[str, int]:
-    """ Импортирует правила для пользователя, используя bulk insert """
+    """ Импортирует созданные кем-то правила для пользователя, используя bulk insert """
     skipped_count = 0
     created_rules_count = 0
     scope = get_user_access_scope(db=db, user=current_user)
