@@ -90,9 +90,9 @@ def process_new_parameter_data(parameter_data_id: int) -> None:
                     shop_name_str = shop.shop_name if shop else "N/A"
                     rule_name_str = f"'{rule.rule_name}'" if rule.rule_name else f"(ID: {rule.rule_id})"
 
-                    alert_message = (   f"Тревога [{shop_name_str} / {line_type_str} / {agg_type_str} / {act_type_str}]: "
+                    alert_message = (   f"Тревога! [{shop_name_str} / {line_type_str} / {agg_type_str} / {act_type_str}]: "
                                         f"Параметр '{param_name_str}' = {value_to_check:.2f} {unit_str} "
-                                        f"нарушил правило {rule_name_str} ({operator} {threshold} {unit_str})"
+                                        f"нарушил правило ({operator} {threshold} {unit_str})"
                     )[:150]
                 except AttributeError as e:
                     print(f"[AlertService] Ошибка при формировании сообщения: {e}")
