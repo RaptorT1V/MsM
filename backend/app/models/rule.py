@@ -16,7 +16,7 @@ class MonitoringRule(Base):
     rule_id: Mapped[int] = mapped_column(Integer, Identity(always=True), primary_key=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
     parameter_id: Mapped[int] = mapped_column(Integer, ForeignKey("parameters.parameter_id", ondelete="CASCADE"), nullable=False, index=True)
-    rule_name: Mapped[Optional[str]] = mapped_column(String(99))
+    rule_name: Mapped[Optional[str]] = mapped_column(String(110))
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default='true')
     comparison_operator: Mapped[str] = mapped_column(String(2), nullable=False)
     threshold: Mapped[float] = mapped_column(Float(precision=8), nullable=False)
