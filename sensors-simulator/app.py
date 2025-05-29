@@ -1,8 +1,8 @@
-import asyncio, json, nats, psycopg2, random, signal, sys, threading
-from nats.errors import ConnectionClosedError, NoServersError, TimeoutError
-from backend.app.core.config import settings
+import asyncio, psycopg2, random, signal, threading
 from datetime import datetime, timezone
 from typing import List, Tuple
+from faststream.rabbit import RabbitBroker
+from backend.app.core.config import settings
 
 
 # --- Параметры симуляции ---
@@ -18,6 +18,9 @@ DEFAULT_SLEEP_MAX = 2.0
 # --- Управление потоками ---
 stop_event = threading.Event()
 
+# --- FastStream RabbitMQ SETUP ---
+broker = RabbitBroker(settings.RABBITMQ_URL)
+
 
 '''
 ===============
@@ -26,7 +29,7 @@ stop_event = threading.Event()
 '''
 
 
-def signal_handler(signum, frame):
+def signal_handler(signum, frame):  # noqa
     """ Обрабатывает Ctrl+C """
     print("\nУвидел 'Ctrl+C'! Завершаю потоки...")
     stop_event.set()
@@ -41,7 +44,7 @@ def connect_db():
         )
         return conn
     except psycopg2.OperationalError as e:
-        print(f"ОШИБКА: Не удалось подключиться к БД для чтения параметров: {e}")
+        print(f"ОШИБКА!!! Не удалось подключиться к БД для чтения параметров: {e}")
         return None
 
 
@@ -61,7 +64,7 @@ def get_parameters_from_db() -> List[Tuple[int, str]]:
         parameters = cursor.fetchall()
         cursor.close()
     except (Exception, psycopg2.Error) as error:
-        print(f"Ошибка при получении параметров из БД: {error}")
+        print(f"ОШИБКА!!! Не удалось получить параметры из БД: {error}")
     finally:
         if conn:
             conn.close()
@@ -71,20 +74,20 @@ def get_parameters_from_db() -> List[Tuple[int, str]]:
 def generate_initial_value(param_type):
     """ Генерирует начальное значение на основе типа параметра """
     param_type = param_type.lower()
-    if 'температура' in param_type: return random.uniform(20, 100)
-    elif 'ток' in param_type: return random.uniform(10, 50)
-    elif 'мощность' in param_type: return random.uniform(1000, 5000)
-    elif 'скорость' in param_type: return random.uniform(1, 10)
-    elif 'вибрация' in param_type: return random.uniform(0, 3)
-    elif 'давление' in param_type: return random.uniform(1, 5)
-    elif 'разрежение' in param_type: return random.uniform(50, 200)
-    elif 'уровень' in param_type or 'высота' in param_type: return random.uniform(10, 100)
+    if 'температура' in param_type: return random.uniform(80, 82)
+    elif 'ток' in param_type: return random.uniform(150, 152)
+    elif 'мощность' in param_type: return random.uniform(1000, 1002)
+    elif 'скорость' in param_type: return random.uniform(30, 32)
+    elif 'вибрация' in param_type: return random.uniform(20, 22)
+    elif 'давление' in param_type: return random.uniform(100, 102)
+    elif 'разрежение' in param_type: return random.uniform(200, 202)
+    elif 'уровень' in param_type or 'высота' in param_type: return random.uniform(10, 12)
     else: return random.uniform(0, 50)
 
 
-async def generate_data_for_parameter(nats_client, parameter_id, param_type):
-    """ Асинхронная задача: генерирует данные и публикует их в NATS """
-    print(f"[Поток {parameter_id} ({param_type})]: Запущен.")
+async def generate_data_for_parameter(parameter_id: int, param_type: str):
+    """ Асинхронная задача: генерирует данные и публикует их в RabbitMQ через FastStream """
+    print(f"SIMULATOR  [Поток {parameter_id} ({param_type})] Запущен.")
     value = generate_initial_value(param_type)
 
     while not stop_event.is_set():
@@ -101,57 +104,51 @@ async def generate_data_for_parameter(nats_client, parameter_id, param_type):
                 "parameter_value": round(value, 2),
                 "data_timestamp": timestamp.isoformat()
             }
-            payload_json = json.dumps(payload_dict)
 
-            # Публикует сообщение в NATS
-            await nats_client.publish(settings.NATS_SUBJECT, payload_json.encode())
-            print(f"Published: {payload_json}")
+            # Публикует в именованную очередь
+            await broker.publish(
+                payload_dict,
+                queue=settings.RABBITMQ_QUEUE_NAME,
+            )
+            print(f"SIMULATOR: Опубликовано в очередь RabbitMQ '{settings.RABBITMQ_QUEUE_NAME}': {payload_dict}")
 
             # Асинхронная пауза
             sleep_duration = random.uniform(DEFAULT_SLEEP_MIN, DEFAULT_SLEEP_MAX)
             await asyncio.sleep(sleep_duration)
-
-        # Обработка ошибок NATS и KeyboardInterrupt
-        except KeyboardInterrupt: break
-        except ConnectionClosedError:
-            print(f"ОШИБКА NATS [Поток {parameter_id}]: Соединение закрыто...")
-            await asyncio.sleep(5)
-        except TimeoutError:
-            print(f"ОШИБКА NATS [Поток {parameter_id}]: Таймаут.")
-            await asyncio.sleep(1)
-        except NoServersError as e:
-            print(f"ОШИБКА NATS [Поток {parameter_id}]: Нет серверов - {e}")
-            await asyncio.sleep(5)
+        except KeyboardInterrupt:
+            break
         except Exception as error:
-            print(f"ОШИБКА в потоке {parameter_id}: {error}")
+            print(f"SIMULATOR !!! ОШИБКА в потоке {parameter_id}: {type(error).__name__} - {error}")
+            if stop_event.is_set():
+                 break
+            print(f"SIMULATOR  [Поток {parameter_id}]: Пауза 5 сек после ошибки.")
             await asyncio.sleep(5)
 
-    print(f"[Поток {parameter_id}]: Завершен.")
+    print(f"[SIMULATOR  Поток {parameter_id}] Завершён.")
 
 
 async def main_async():
     """ Главная асинхронная функция симулятора """
-    nats_client = None
     try:
         # 1. Получает список параметров из БД
-        print("Получение списка параметров из PostgreSQL...")
+        print("SIMULATOR  Получение списка параметров из PostgreSQL...")
         parameters_to_simulate = get_parameters_from_db()
         if not parameters_to_simulate:
-            print("В базе данных не найдено параметров для симуляции. Выход.")
-            sys.exit(1)
-        print(f"Найдено {len(parameters_to_simulate)} параметров.")
+            print("SIMULATOR  В базе данных не найдено параметров для симуляции. Выход.")
+            return
+        print(f"SIMULATOR  Найдено {len(parameters_to_simulate)} параметров.")
 
-        # 2. Подключается к NATS
-        print(f"Подключаюсь к NATS: {settings.NATS_URL}...")
-        nats_client = await nats.connect(settings.NATS_URL, name="Parameter Simulator")
-        print("Успешно подключено к NATS.")
+        # 2. Подключается к RabbitMQ
+        print(f"SIMULATOR: Подключаюсь к RabbitMQ: {settings.RABBITMQ_URL}...")
+        await broker.start()
+        print("SIMULATOR: Успешно подключено к RabbitMQ через FastStream.")
 
         # 3. Запускает задачи генерации
-        print(f"Запускаю {len(parameters_to_simulate)} потоков генерации данных...")
-        print("Нажмите Ctrl+C для остановки.")
+        print(f"SIMULATOR  Запускаю {len(parameters_to_simulate)} потоков генерации данных...")
+        print("SIMULATOR  Нажмите Ctrl+C для остановки.")
         tasks = []
         for p_id, p_type in parameters_to_simulate:
-            task = asyncio.create_task(generate_data_for_parameter(nats_client, p_id, p_type))
+            task = asyncio.create_task(generate_data_for_parameter(p_id, p_type))
             tasks.append(task)
             await asyncio.sleep(0.01)
 
@@ -160,21 +157,21 @@ async def main_async():
             await asyncio.sleep(1)
 
         # Если остановка произошла (Ctrl+C), отменяет задачи
-        print("Отменяю задачи генерации...")
+        print("SIMULATOR  Отменяю задачи генерации...")
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
-
-    except NoServersError as e:
-         print(f"Критическая ошибка: Не удалось подключиться к NATS - {e}")
     except Exception as e:
-         print(f"Критическая ошибка в main_async: {e}")
+        print(f"SIMULATOR  !!! Критическая ОШИБКА в main_async: {type(e).__name__} - {e}")
     finally:
-        print("Основная задача: завершение.")
-        if nats_client and nats_client.is_connected:
-            print("Закрываю соединение с NATS...")
-            await nats_client.close()
-        print("Симуляция завершена.")
+        print("SIMULATOR  Основная задача: завершение.")
+        if broker:
+            print("SIMULATOR  Закрываю соединение с RabbitMQ...")
+            try:
+                await broker.close()
+            except Exception as e_close:
+                print(f"SIMULATOR  !!! ОШИБКА при закрытии соединения RabbitMQ: {e_close}")
+        print("SIMULATOR  Симуляция завершена.")
 
 
 if __name__ == "__main__":

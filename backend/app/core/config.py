@@ -21,11 +21,16 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
-    # --- Настройки NATS ---
-    NATS_URL: str = "nats://localhost:4222"
-    NATS_SUBJECT: str = "monitoring.data.new"
-    NATS_STREAM: str = "monitoring_stream"
-    NATS_QUEUE_GROUP: str = "rule_checker_group"
+    # --- Настройки RabbitMQ ---
+    RABBITMQ_USER: str = "guest"
+    RABBITMQ_PASSWORD: str = "guest"
+    RABBITMQ_HOST: str = "localhost"
+    RABBITMQ_PORT: int = 5672
+    RABBITMQ_VIRTUAL_HOST: str = "/"
+    RABBITMQ_QUEUE_NAME: str = "parameter_data_queue"
+    RABBITMQ_EXCHANGE_NAME: str = "data_exchange"
+    RABBITMQ_ROUTING_KEY: str = "parameter.data.new"
+    RABBITMQ_URL: Optional[str] = None
 
     # --- URL БД (будет вычислен) ---
     SQLALCHEMY_DATABASE_URL: Optional[PostgresDsn] = None
@@ -47,11 +52,13 @@ class Settings(BaseSettings):
             host=self.DB_HOST,
             port=int(self.DB_PORT)
         )
+        self.RABBITMQ_URL = f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}{self.RABBITMQ_VIRTUAL_HOST}"
         return self
 
 
 # --- Экземпляр настроек ---
 settings = Settings()
+
 
 # --- Проверка ---
 if not settings.SECRET_KEY or settings.SECRET_KEY == "default_secret_needs_changing":
