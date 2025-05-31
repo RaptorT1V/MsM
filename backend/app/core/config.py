@@ -1,4 +1,5 @@
 from typing import List, Optional, Union
+
 from dotenv import load_dotenv
 from pydantic import AnyHttpUrl, model_validator, PostgresDsn
 from pydantic_settings import BaseSettings
@@ -14,7 +15,7 @@ class Settings(BaseSettings):
     DB_USER: str = "admin"
     DB_PASSWORD: str = "admin"
     DB_HOST: str = "127.0.0.1"
-    DB_PORT: str = "5432"
+    DB_PORT: int = 5432
 
     # --- Переменные для JWT ---
     SECRET_KEY: str
@@ -43,13 +44,14 @@ class Settings(BaseSettings):
     # --- Валидатор соберёт URL после загрузки остальных полей ---
     @model_validator(mode='after')
     def assemble_db_connection(self) -> 'Settings':
+        """ Собирает полные URL-адреса для подключения к PostgreSQL и к RabbitMQ """
         self.SQLALCHEMY_DATABASE_URL = PostgresDsn.build(
             scheme="postgresql+psycopg2",
             path=f"{self.DB_NAME}",
             username=self.DB_USER,
             password=self.DB_PASSWORD,
             host=self.DB_HOST,
-            port=int(self.DB_PORT)
+            port=self.DB_PORT
         )
         self.RABBITMQ_URL = f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}{self.RABBITMQ_VIRTUAL_HOST}"
         return self
@@ -57,7 +59,6 @@ class Settings(BaseSettings):
 
 # --- Экземпляр настроек ---
 settings = Settings()
-
 
 # --- Проверка ---
 if not settings.SECRET_KEY or settings.SECRET_KEY == "default_secret_needs_changing":
