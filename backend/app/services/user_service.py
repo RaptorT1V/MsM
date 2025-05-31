@@ -1,18 +1,19 @@
 from typing import List, Optional
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+
 from app.core.config import settings
 from app.models.user import User
 from app.repositories.user_repository import user_repository
-from app.services.auth_service import get_password_hash, verify_password
 from app.schemas.user import UserCreate, UserUpdateAdmin, UserUpdatePassword
+from app.services.auth_service import get_password_hash, verify_password
 
 
 def create_user(*, db: Session, user_in: UserCreate) -> User:
     """ Создаёт нового пользователя в БД.
     Выполняет проверку на уникальность email/телефона.
     Хеширует пароль перед сохранением. """
-
     existing_user = user_repository.get_by_email(db, email=user_in.email)
     if existing_user:
         raise HTTPException(
@@ -28,7 +29,6 @@ def create_user(*, db: Session, user_in: UserCreate) -> User:
         )
 
     hashed_password = get_password_hash(user_in.password)
-
     db_user = user_repository.create_user(
         db=db, obj_in=user_in, hashed_password=hashed_password
     )
@@ -44,7 +44,6 @@ def change_password(*, db: Session, current_user: User, password_data: UserUpdat
         )
 
     new_hashed_password = get_password_hash(password_data.new_password)
-
     user_repository.update(
         db=db, db_obj=current_user, obj_in={"password_hash": new_hashed_password}
     )

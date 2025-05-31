@@ -1,9 +1,11 @@
 from typing import List
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+
 from app.models.equipment import Shop, AggregateType, ActuatorType, Line, Aggregate, Actuator
 from app.models.user import User
-from app.repositories.equipment_repository import shop_repository, aggregate_type_repository, actuator_type_repository, line_repository, aggregate_repository, actuator_repository
+from app.repositories.equipment_repository import aggregate_type_repository, actuator_type_repository, shop_repository, line_repository, aggregate_repository, actuator_repository
 from app.services.permissions import ScopeTypeEnum, get_user_access_scope, can_user_access_shop, can_user_access_line, can_user_access_aggregate
 
 

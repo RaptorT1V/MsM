@@ -1,13 +1,15 @@
 from typing import Any, Dict, List, Optional
+
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+
 from app.core.config import settings
 from app.models.rule import MonitoringRule
 from app.models.user import User
 from app.repositories.rule_repository import rule_repository
-from app.services.permissions import get_user_access_scope, can_user_access_parameter
 from app.schemas.rule import RuleCreate, RuleUpdate
+from app.services.permissions import get_user_access_scope, can_user_access_parameter
 
 
 '''

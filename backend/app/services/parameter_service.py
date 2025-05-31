@@ -1,7 +1,9 @@
 import datetime
 from typing import List, Optional
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+
 from app.models.parameter import ParameterType, Parameter, ParameterData
 from app.models.user import User
 from app.repositories.parameter_repository import parameter_type_repository, parameter_repository, parameter_data_repository
@@ -21,7 +23,8 @@ def get_all_parameter_types(*, db: Session, skip: int = 0, limit: int = 100) -> 
     return parameter_type_repository.get_multi(db=db, skip=skip, limit=limit)
 
 
-def get_parameters_for_actuator(*, db: Session, current_user: User, actuator_id: int, skip: int = 0, limit: int = 100) -> List[Parameter]:
+def get_parameters_for_actuator(*, db: Session, current_user: User, actuator_id: int,
+                                skip: int = 0, limit: int = 100) -> List[Parameter]:
     """ Получает список доступных пользователю параметров для актуатора """
     scope = get_user_access_scope(db=db, user=current_user)
 
@@ -48,7 +51,9 @@ def get_parameter_details(*, db: Session, current_user: User, parameter_id: int)
     return parameter
 
 
-def get_parameter_data(*, db: Session, current_user: User, parameter_id: int, start_time: datetime.datetime, end_time: datetime.datetime, limit: Optional[int] = None) -> List[ParameterData]:
+def get_parameter_data(*, db: Session, current_user: User, parameter_id: int,
+                       start_time: datetime.datetime, end_time: datetime.datetime,
+                       limit: Optional[int] = None) -> List[ParameterData]:
     """ Получает данные временного ряда для параметра, доступного пользователю """
     scope = get_user_access_scope(db=db, user=current_user)
 

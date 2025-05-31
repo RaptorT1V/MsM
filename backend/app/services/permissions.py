@@ -1,7 +1,9 @@
 import enum
 from typing import Any, Dict, List
+
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+
 from app.models.enums import LineTypesEnum
 from app.models.equipment import Line  # noqa F401
 from app.models.user import User
@@ -59,7 +61,7 @@ def get_user_access_scope(*, db: Session, user: User) -> AccessScope:
         if shop:
             scope.allowed_shop_ids = [shop.shop_id]
         else:  # Если цех из конфига не найден в БД, сбрасывает права
-            print(f"Warning: Shop '{role_config['shop_name']}' not found for role '{job_title_name}'. Access set to NONE.")
+            print(f"[PERMISSION_WARNING]  Цех '{role_config['shop_name']}' не найден для должности '{job_title_name}'. Доступ сброшен на NONE.")
             scope.scope_type = ScopeTypeEnum.NONE
     elif scope.scope_type == ScopeTypeEnum.LINE:
         shop = shop_repository.get_by_name(db, name=role_config["shop_name"])
@@ -70,10 +72,10 @@ def get_user_access_scope(*, db: Session, user: User) -> AccessScope:
             if line:
                 scope.allowed_line_ids = [line.line_id]
             else:  # Если линия из конфига не найдена в БД, сбрасывает права
-                print(f"Warning: Line '{role_config['line_type'].value}' in shop '{role_config['shop_name']}' not found for role '{job_title_name}'. Access set to NONE.")
+                print(f"[PERMISSION_WARNING]  Линия '{role_config['line_type'].value}' в цехе '{role_config['shop_name']}' не найдена для должности '{job_title_name}'. Доступ сброшен на NONE.")
                 scope.scope_type = ScopeTypeEnum.NONE
-        else:  # Если цех из конфига не найден, сбрасывает права
-            print(f"Warning: Shop '{role_config['shop_name']}' not found for role '{job_title_name}'. Access set to NONE.")
+        else:  # Если цех из конфига не найден в БД, сбрасывает права
+            print(f"[PERMISSION_WARNING]  Цех '{role_config['shop_name']}' не найден для должности '{job_title_name}'. Доступ сброшен на NONE.")
             scope.scope_type = ScopeTypeEnum.NONE
     return scope
 

@@ -1,7 +1,8 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-from app.models.user import User
+
 from app.models.setting import UserSetting
+from app.models.user import User
 from app.repositories.setting_repository import setting_repository
 from app.schemas.setting import SettingUpdate
 

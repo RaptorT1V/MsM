@@ -1,8 +1,10 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional
+from typing import Optional
+
 from jose import jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
+
 from app.core.config import settings
 from app.models.user import User
 from app.repositories.user_repository import user_repository
@@ -15,6 +17,7 @@ from app.repositories.user_repository import user_repository
 '''
 
 
+# --- Контекст Cryptography, позволяющий хешировать и верифицировать пароли с помощью bcrypt ---
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
