@@ -1,6 +1,7 @@
 import datetime
-from pydantic import BaseModel
 from typing import Optional
+
+from pydantic import BaseModel
 
 
 '''
@@ -68,7 +69,7 @@ class ParameterDataCreate(ParameterDataBase):
 
 # --- Схема для чтения временных данных параметра ---
 class ParameterDataRead(ParameterDataBase):
-    parameter_data_id: int  # На всякий случай :)
+    parameter_data_id: int  # На всякий случай
 
     model_config = {
         "from_attributes": True
