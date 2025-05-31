@@ -1,8 +1,9 @@
 from typing import Generator
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
-from app.core.config import settings
 
+from app.core.config import settings
 
 # --- Создание "движка" SQLAlchemy (Engine) ---
 db_url_str = str(settings.SQLALCHEMY_DATABASE_URL)
