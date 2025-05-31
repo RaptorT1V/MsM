@@ -1,9 +1,11 @@
 import asyncio, signal
 from typing import Optional
-from sqlalchemy.orm import Session
+
 from faststream import FastStream
-from faststream.rabbit import RabbitBroker, RabbitQueue, RabbitMessage, RabbitExchange, ExchangeType
-import app.db.base  # noqa
+from faststream.rabbit import ExchangeType, RabbitBroker, RabbitExchange, RabbitMessage, RabbitQueue
+from sqlalchemy.orm import Session
+
+import app.db.base  # noqa F401
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.repositories.parameter_repository import parameter_data_repository
@@ -34,7 +36,7 @@ print(f"[WORKER]  Брокер RabbitMQ '{settings.RABBITMQ_URL}' и очере�
 @app.on_startup
 async def on_startup():
     """ Выполняется при старте приложения FastStream """
-    print("WORKER  @app.on_startup - приложение FastStream запускается.")
+    print("[WORKER]  @app.on_startup - приложение FastStream запускается.")
     try:
         print(f"[WORKER]  Попытка объявить fanout exchange '{worker_live_data_exchange.name}'...")
         await broker.declare_exchange(worker_live_data_exchange)
@@ -54,7 +56,7 @@ async def on_startup():
 @app.on_shutdown
 async def on_shutdown():
     """ Выполняется при остановке приложения FastStream """
-    print("WORKER  @app.on_shutdown - приложение FastStream останавливается.")
+    print("[WORKER]  @app.on_shutdown - приложение FastStream останавливается.")
 
 
 # --- Подписчик на очередь RabbitMQ ---
@@ -105,11 +107,12 @@ async def handle_data_message(msg_data: dict, message: RabbitMessage):
 async def run_worker_main_loop():
     """ Основная функция для запуска и управления жизненным циклом FastStream брокера.
     Настраивает обработчики сигналов для корректного завершения. """
-    print("WORKER  Инициализация run_worker_main_loop...")
+    print("[WORKER]  Инициализация run_worker_main_loop...")
     loop = asyncio.get_running_loop()
     stop_event_main_loop = asyncio.Event()
 
     def _graceful_shutdown_signal_handler(signal_name: str):
+        """ Обрабатывает сигнал завершения `signal_name` и инициирует корректное завершение брокера """
         print(f"[WORKER]  Сигнал '{signal_name}' получен. Инициализирую graceful shutdown...")
         if not stop_event_main_loop.is_set():
             stop_event_main_loop.set()
@@ -123,29 +126,29 @@ async def run_worker_main_loop():
             signal.signal(sig, lambda s, f: _graceful_shutdown_signal_handler(signal.Signals(s).name))
 
     try:
-        print("WORKER  Попытка запустить брокер RabbitMQ и активация подписчиков...")
+        print("[WORKER]  Попытка запустить брокер RabbitMQ и активация подписчиков...")
         await broker.start()
-        print("WORKER  Брокер успешно стартанул. Воркер активен и слушает сообщения.")
+        print("[WORKER]  Брокер успешно стартанул. Воркер активен и слушает сообщения.")
         await stop_event_main_loop.wait()
-        print("WORKER  Остановка event set, выход из main_loop.")
+        print("[WORKER]  Остановка event set, выход из main_loop.")
     except Exception as e:
         print(f"[WORKER]  !!! ОШИБКА при запуске брокера или же в главном цикле работы брокера: '{type(e).__name__}' - '{e}'")
     finally:
         if broker and hasattr(broker, 'close') and callable(broker.close):
             if getattr(broker, '_connection', None) is not None or getattr(broker, '_channel', None) is not None:
-                print("WORKER  Попытка закрыть брокер FastStream...")
+                print("[WORKER]  Попытка закрыть брокер FastStream...")
                 try:
                     await broker.close()
-                    print("WORKER  Брокер FastStream успешно закрыт.")
+                    print("[WORKER]  Брокер FastStream успешно закрыт.")
                 except Exception as e_close:
                     print(f"[WORKER]  !!! ОШИБКА при закрытии брокера: '{type(e_close).__name__}' - '{e_close}'")
             else:
-                print("WORKER  Соединение с брокером, кажется, уже закрыто или вообще не было установлено.")
+                print("[WORKER]  Соединение с брокером, кажется, уже закрыто или вообще не было установлено.")
         else:
-            print("WORKER  Объект брокера недоступен или не может быть закрыт.")
-        print("WORKER  Главный цикл работы alert_worker завершён.")
+            print("[WORKER]  Объект брокера недоступен или не может быть закрыт.")
+        print("[WORKER]  Главный цикл работы alert_worker завершён.")
 
 
 if __name__ == "__main__":
-    print("WORKER  Выполнение скрипта начинается (__main__)")
+    print("[WORKER]  Выполнение скрипта начинается (__main__)")
     asyncio.run(run_worker_main_loop())
