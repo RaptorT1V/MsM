@@ -1,7 +1,9 @@
 import datetime
 from typing import List, Optional, TYPE_CHECKING
+
 from sqlalchemy import BigInteger, Float, ForeignKey, func, Identity, Integer, String, TIMESTAMP, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.db.base_class import Base
 
 if TYPE_CHECKING:
@@ -20,6 +22,7 @@ class ParameterType(Base):
     parameters: Mapped[List["Parameter"]] = relationship(back_populates="parameter_type")  # 1:N → Один тип параметра может иметь несколько экземпляров (например, тип параметра = "электрический ток", а его используют множество разных актуаторов)
 
     def __repr__(self):
+        """ Возвращает строковое представление объекта ParameterType """
         return f"<ParameterType(id={self.parameter_type_id}, name='{self.parameter_type_name}')>"
 
 
@@ -41,6 +44,7 @@ class Parameter(Base):
     )
 
     def __repr__(self):
+        """ Возвращает строковое представление объекта Parameter """
         return f"<Parameter(id={self.parameter_id}, actuator_id={self.actuator_id}, type_id={self.parameter_type_id})>"
 
 
@@ -56,4 +60,5 @@ class ParameterData(Base):
     parameter: Mapped["Parameter"] = relationship(back_populates="parameter_data")  # N:1 → Много записей данных для одного параметра
 
     def __repr__(self):
+        """ Возвращает строковое представление объекта ParameterData """
         return f"<ParameterData(param_id={self.parameter_id}, ts='{self.data_timestamp}', val={self.parameter_value})>"

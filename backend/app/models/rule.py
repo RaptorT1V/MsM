@@ -1,7 +1,9 @@
 import datetime
 from typing import List, Optional, TYPE_CHECKING
+
 from sqlalchemy import BigInteger, Boolean, CheckConstraint, Float, ForeignKey, func, Identity, Integer, String, TIMESTAMP, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.db.base_class import Base
 
 if TYPE_CHECKING:
@@ -33,6 +35,7 @@ class MonitoringRule(Base):
     alerts: Mapped[List["Alert"]] = relationship(back_populates="rule", cascade="all, delete")  # 1:N → Одно правило может вызвать множество тревог
 
     def __repr__(self):
+        """ Возвращает строковое представление объекта MonitoringRule """
         return f"<MonitoringRule(id={self.rule_id}, user={self.user_id}, param={self.parameter_id})>"
 
 
@@ -50,4 +53,5 @@ class Alert(Base):
     rule: Mapped["MonitoringRule"] = relationship(back_populates="alerts")  # N:1 → Несколько тревог может быть вызвано одним правилом [но одна тревога (в плане alert_id) не может быть вызвана несколькими правилами сразу]
 
     def __repr__(self):
+        """ Возвращает строковое представление объекта Alert """
         return f"<Alert(id={self.alert_id}, rule_id={self.rule_id}, ts='{self.alert_timestamp}')>"

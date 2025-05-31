@@ -1,7 +1,9 @@
 import datetime
 from typing import List, Optional, TYPE_CHECKING
+
 from sqlalchemy import CHAR, TIMESTAMP, CheckConstraint, ForeignKey, Identity, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.db.base_class import Base
 
 if TYPE_CHECKING:
@@ -19,6 +21,7 @@ class JobTitle(Base):
     users: Mapped[List["User"]] = relationship(back_populates="job_title")  # 1:N → Одну должность могут иметь несколько рабочих
 
     def __repr__(self):
+        """ Возвращает строковое представление объекта JobTitle """
         return f"<JobTitle(id={self.job_title_id}, name='{self.job_title_name}')>"
 
 
@@ -47,9 +50,11 @@ class User(Base):
 
     @property
     def job_title_name(self) -> Optional[str]:
+        """ Возвращает наименование должности пользователя из таблицы job_titles или None, если должность не указана """
         if self.job_title:
             return self.job_title.job_title_name
         return None
 
     def __repr__(self):
+        """ Возвращает строковое представление объекта User """
         return f"<User(id={self.user_id}, email='{self.email}')>"

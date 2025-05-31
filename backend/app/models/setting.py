@@ -1,7 +1,9 @@
 from typing import List, TYPE_CHECKING
+
 from sqlalchemy import Boolean, Enum as SQLEnum, CheckConstraint, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.db.base_class import Base
 from .enums import AlarmTypesEnum
 
@@ -29,4 +31,5 @@ class UserSetting(Base):
     user: Mapped["User"] = relationship(back_populates="settings")  # 1:1 → Одни настройки соответствуют только одному пользователю
 
     def __repr__(self):
+        """ Возвращает строковое представление объекта UserSetting """
         return f"<UserSetting(user_id={self.user_id}, theme='{self.theme}')>"

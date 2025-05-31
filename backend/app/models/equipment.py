@@ -1,6 +1,8 @@
 from typing import List, TYPE_CHECKING
+
 from sqlalchemy import ForeignKey, Enum as SQLEnum, Identity, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.db.base_class import Base
 from .enums import LineTypesEnum
 
@@ -26,6 +28,7 @@ class Shop(Base):
     lines: Mapped[List["Line"]] = relationship(back_populates="shop")  # 1:N → Один цех содержит несколько линий
 
     def __repr__(self):
+        """ Возвращает строковое представление объекта Shop """
         return f"<Shop(id={self.shop_id}, name='{self.shop_name}')>"
 
 
@@ -39,6 +42,7 @@ class AggregateType(Base):
     aggregates: Mapped[List["Aggregate"]] = relationship(back_populates="aggregate_type")  # 1:N → Один тип агрегата содержит несколько конкретных агрегатов этого типа (например, тип агрегата = "агломашина", а этих агломашин будет 4 в аглоцехе, по 1 на каждую линию)
 
     def __repr__(self):
+        """ Возвращает строковое представление объекта AggregateType """
         return f"<AggregateType(id={self.aggregate_type_id}, name='{self.aggregate_type_name}')>"
 
 
@@ -52,6 +56,7 @@ class ActuatorType(Base):
     actuators: Mapped[List["Actuator"]] = relationship(back_populates="actuator_type")  # 1:N → Один тип актуатора может иметь несколько экземпляров (например, тип актуатора = "электродвигатель постоянного тока", а этих двигателей будет множество по всему предприятию)
 
     def __repr__(self):
+        """ Возвращает строковое представление объекта ActuatorType """
         return f"<ActuatorType(id={self.actuator_type_id}, name='{self.actuator_type_name}')>"
 
 
@@ -80,6 +85,7 @@ class Line(Base):
     )
 
     def __repr__(self):
+        """ Возвращает строковое представление объекта Line """
         return f"<Line(id={self.line_id}, type='{self.line_type.value}', shop_id={self.shop_id})>"
 
 
@@ -100,6 +106,7 @@ class Aggregate(Base):
     )
 
     def __repr__(self):
+        """ Возвращает строковое представление объекта Aggregate """
         return f"<Aggregate(id={self.aggregate_id}, type_id={self.aggregate_type_id}, line_id={self.line_id})>"
 
 
@@ -118,4 +125,5 @@ class Actuator(Base):
     parameters: Mapped[List["Parameter"]] = relationship(back_populates="actuator")  # 1:N → Один актуатор имеет несколько измерительных параметров
 
     def __repr__(self):
+        """ Возвращает строковое представление объекта Actuator """
         return f"<Actuator(id={self.actuator_id}, type_id={self.actuator_type_id}, aggregate_id={self.aggregate_id})>"
