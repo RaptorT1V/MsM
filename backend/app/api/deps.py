@@ -1,9 +1,11 @@
 from typing import Optional
+
 from fastapi import Depends, HTTPException, status, Query, WebSocket
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
+
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.user import User
@@ -28,9 +30,9 @@ async def get_current_user(db: Session = Depends(get_db), token: str = Depends(o
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id_from_sub = payload.get("sub")
         user_role_from_payload = payload.get("role")
-
         if user_id_from_sub is None:
             raise credentials_exception
+
         token_data = TokenData(user_id=int(user_id_from_sub), role=user_role_from_payload)
     except JWTError:
         raise credentials_exception
@@ -79,7 +81,6 @@ async def get_current_user_ws(websocket: WebSocket, db: Session = Depends(get_db
             return None
 
         token_data = TokenData(user_id=int(user_id_from_sub), role=user_role_from_payload)
-
     except JWTError:
         print("WS Auth Error: JWTError - Could not validate credentials.")
         await websocket.close(code=credentials_exception_ws, reason="Invalid token (JWTError)")
