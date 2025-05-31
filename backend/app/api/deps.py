@@ -1,4 +1,5 @@
-from fastapi import Depends, HTTPException, status
+from typing import Optional
+from fastapi import Depends, HTTPException, status, Query, WebSocket
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from pydantic import ValidationError
@@ -54,3 +55,49 @@ async def get_current_admin_user(current_user: User = Depends(get_current_user))
             detail="Недостаточно прав для выполнения этой операции"
         )
     return current_user
+
+
+async def get_current_user_ws(websocket: WebSocket, db: Session = Depends(get_db),
+                              token: Optional[str] = Query(None)) -> Optional[User]:
+    """ Зависимость для аутентификации пользователя в WebSocket-соединении через токен в query-параметре.
+    Закрывает WebSocket с соответствующим кодом при ошибке. """
+    credentials_exception_ws = status.WS_1008_POLICY_VIOLATION
+
+    if token is None:
+        print("WS Auth Error: Token not provided in query.")
+        await websocket.close(code=credentials_exception_ws, reason="Token not provided")
+        return None
+
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id_from_sub: Optional[str] = payload.get("sub")
+        user_role_from_payload: Optional[str] = payload.get("role")
+
+        if user_id_from_sub is None:
+            print("WS Auth Error: Token payload missing 'sub' (user_id).")
+            await websocket.close(code=credentials_exception_ws, reason="Invalid token payload (sub missing)")
+            return None
+
+        token_data = TokenData(user_id=int(user_id_from_sub), role=user_role_from_payload)
+
+    except JWTError:
+        print("WS Auth Error: JWTError - Could not validate credentials.")
+        await websocket.close(code=credentials_exception_ws, reason="Invalid token (JWTError)")
+        return None
+    except ValidationError:
+        print("WS Auth Error: ValidationError for TokenData.")
+        await websocket.close(code=credentials_exception_ws, reason="Invalid token data (ValidationError)")
+        return None
+    except ValueError:
+        print("WS Auth Error: ValueError for user_id in token.")
+        await websocket.close(code=credentials_exception_ws, reason="Invalid user_id format in token")
+        return None
+
+    user = user_service.get_user(db=db, user_id=token_data.user_id)
+    if user is None:
+        print(f"WS Auth Error: User with id {token_data.user_id} not found.")
+        await websocket.close(code=credentials_exception_ws, reason="User not found")
+        return None
+
+    print(f"WS Auth Success: User {user.user_id} authenticated for WebSocket.")
+    return user

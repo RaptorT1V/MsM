@@ -1,15 +1,71 @@
+import json
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routers import alerts, auth, equipment, parameters, rules, settings, users
+from faststream.rabbit import RabbitBroker, RabbitQueue, RabbitExchange, ExchangeType
+from app.api.routers import alerts, auth, equipment, parameters, rules, settings, users, websockets
 from app.core.config import settings as app_settings
+from app.services.websocket_service import connection_manager
+
+
+# --- Инициализация FastStream для консьюмера Websocket-данных внутри FastAPI ---
+websocket_consumer_broker = RabbitBroker(app_settings.RABBITMQ_URL)
+
+live_data_exchange_fastapi = RabbitExchange(
+    name=app_settings.RABBITMQ_LIVE_DATA_EXCHANGE_NAME,
+    type=ExchangeType.FANOUT,
+    durable=True
+)
+
+websocket_consumer_queue = RabbitQueue(
+    name="",
+    durable=False,
+    auto_delete=True,
+    exclusive=True,
+)
+
+
+@websocket_consumer_broker.subscriber(queue=websocket_consumer_queue, exchange=live_data_exchange_fastapi)
+async def _consume_live_data_for_ws(data: dict):
+    """ Этот подписчик работает внутри FastAPI приложения """
+    print(f"FASTAPI_WS_CONSUMER  Получил live data через RabbitMQ: {data}")
+    parameter_id_val = data.get("parameter_id")
+    if parameter_id_val is not None:
+        try:
+            parameter_id_int = int(parameter_id_val)
+            message_json = json.dumps(data)
+            await connection_manager.broadcast_to_parameter_subscribers(parameter_id_int, message_json)
+        except ValueError:
+            print(f"FASTAPI_WS_CONSUMER: Invalid parameter_id format in message: {parameter_id_val}")
+        except Exception as e_broadcast:
+             print(f"FASTAPI_WS_CONSUMER: Error during broadcast for parameter_id {parameter_id_val}: {e_broadcast}")
+    else:
+        print(f"FASTAPI_WS_CONSUMER: Message received without parameter_id: {data}")
 
 
 @asynccontextmanager
 async def lifespan(app_instance: FastAPI):
-    print("PRINT:  Приложение FastAPI запускается...")
+    print("[FastAPI]  Lifespan запускается...")
+    print("[FastAPI]  Попытка создать WebSocket consumer broker...")
+    try:
+        await websocket_consumer_broker.connect()
+        print(f"[FastAPI]  Объявляю exchange '{live_data_exchange_fastapi.name}' для WebSocket consumer...")
+        await websocket_consumer_broker.declare_exchange(live_data_exchange_fastapi)
+        print(f"[FastAPI]  Объявляю очередь для WebSocket consumer...")
+        await websocket_consumer_broker.declare_queue(websocket_consumer_queue)
+        print(f"[FastAPI]  Очередь для WebSocket consumer успешно объявлена.")
+        await websocket_consumer_broker.start()
+        print("[FastAPI]  WebSocket consumer broker успешно запущен.")
+    except Exception as e:
+        print(f"[FastAPI]  !!! ОШИБКА при запуске WebSocket consumer broker: {type(e).__name__} - {e}")
     yield
-    print("- - - - - -\nPRINT:  Приложение FastAPI останавливается...")
+    print("- - - - - -\n[FastAPI]  Приложение FastAPI останавливается...")
+    print("[FastAPI]  Попытка закрыть WebSocket consumer broker...")
+    try:
+        await websocket_consumer_broker.close()
+        print("[FastAPI]  WebSocket consumer broker успешно закрыт.")
+    except Exception as e:
+        print(f"[FastAPI]  !!! ОШИБКА при закрытии WebSocket consumer broker: {type(e).__name__} - {e}")
 
 
 # --- Описание приложения ---
@@ -19,10 +75,11 @@ description = """
 
     Вы сможете:
         - Аутентифицироваться и управлять своим профилем;
-        - Просматривать иерархию оборудования (цеха, линии, агрегаты, актуаторы);
+        - Просматривать иерархию оборудования (цехи, линии, агрегаты, актуаторы);
         - Просматривать параметры для актуаторов и их значения;
         - Создавать и управлять правилами мониторинга для параметров;
-        - Получать и просматривать тревоги, сработавшие по вашим правилам.
+        - Получать и просматривать тревоги, сработавшие по вашим правилам;
+        - Строить графики параметров в оффлайн и онлайн режимах.
 """
 
 
@@ -68,9 +125,6 @@ app.include_router(equipment.router, prefix=f"{api_prefix}", tags=["Equipment Hi
 app.include_router(parameters.router, prefix=f"{api_prefix}", tags=["Parameters & Data"])
 app.include_router(rules.router, prefix=f"{api_prefix}", tags=["Monitoring Rules"])
 app.include_router(alerts.router, prefix=f"{api_prefix}", tags=["Alerts"])
+app.include_router(websockets.router, prefix=f"{api_prefix}", tags=["WebSockets"])
 
-
-# Простой эндпоинт для проверки работоспособности API (опционально)
-@app.get("/", tags=["Root"])
-async def read_root():
-    return {"message": "Добро пожаловать в API мобильной системы мониторинга (МsМ)!"}
+print("[FastAPI]  Роутеры подключены.")
