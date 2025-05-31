@@ -28,8 +28,7 @@ class Settings(BaseSettings):
     RABBITMQ_PORT: int = 5672
     RABBITMQ_VIRTUAL_HOST: str = "/"
     RABBITMQ_QUEUE_NAME: str = "parameter_data_queue"
-    RABBITMQ_EXCHANGE_NAME: str = "data_exchange"
-    RABBITMQ_ROUTING_KEY: str = "parameter.data.new"
+    RABBITMQ_LIVE_DATA_EXCHANGE_NAME: str = "live_data_fanout_exchange"
     RABBITMQ_URL: Optional[str] = None
 
     # --- URL БД (будет вычислен) ---

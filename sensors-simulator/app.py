@@ -1,7 +1,7 @@
 import asyncio, psycopg2, random, signal, threading
 from datetime import datetime, timezone
 from typing import List, Tuple
-from faststream.rabbit import RabbitBroker
+from faststream.rabbit import RabbitBroker, RabbitExchange, ExchangeType
 from backend.app.core.config import settings
 
 
@@ -18,8 +18,15 @@ DEFAULT_SLEEP_MAX = 2.0
 # --- Управление потоками ---
 stop_event = threading.Event()
 
-# --- FastStream RabbitMQ SETUP ---
+# --- FastStream RabbitMQ инициализация ---
 broker = RabbitBroker(settings.RABBITMQ_URL)
+
+# --- Определение fanout exchange ---
+simulator_live_data_exchange = RabbitExchange(
+    name=settings.RABBITMQ_LIVE_DATA_EXCHANGE_NAME,
+    type=ExchangeType.FANOUT,
+    durable=True
+)
 
 
 '''
@@ -44,7 +51,7 @@ def connect_db():
         )
         return conn
     except psycopg2.OperationalError as e:
-        print(f"ОШИБКА!!! Не удалось подключиться к БД для чтения параметров: {e}")
+        print(f"ОШИБКА!!! Не удалось подключиться к БД для чтения параметров: '{e}'")
         return None
 
 
@@ -64,7 +71,7 @@ def get_parameters_from_db() -> List[Tuple[int, str]]:
         parameters = cursor.fetchall()
         cursor.close()
     except (Exception, psycopg2.Error) as error:
-        print(f"ОШИБКА!!! Не удалось получить параметры из БД: {error}")
+        print(f"ОШИБКА!!! Не удалось получить параметры из БД: '{error}'")
     finally:
         if conn:
             conn.close()
@@ -105,12 +112,13 @@ async def generate_data_for_parameter(parameter_id: int, param_type: str):
                 "data_timestamp": timestamp.isoformat()
             }
 
-            # Публикует в именованную очередь
+            # Публикует в RabbitMQ exchange
             await broker.publish(
                 payload_dict,
-                queue=settings.RABBITMQ_QUEUE_NAME,
+                exchange=simulator_live_data_exchange,
+                routing_key=""
             )
-            print(f"SIMULATOR: Опубликовано в очередь RabbitMQ '{settings.RABBITMQ_QUEUE_NAME}': {payload_dict}")
+            print(f"SIMULATOR  Опубликовано в RabbitMQ exchange '{simulator_live_data_exchange.name}': {payload_dict}")
 
             # Асинхронная пауза
             sleep_duration = random.uniform(DEFAULT_SLEEP_MIN, DEFAULT_SLEEP_MAX)
@@ -118,7 +126,7 @@ async def generate_data_for_parameter(parameter_id: int, param_type: str):
         except KeyboardInterrupt:
             break
         except Exception as error:
-            print(f"SIMULATOR !!! ОШИБКА в потоке {parameter_id}: {type(error).__name__} - {error}")
+            print(f"SIMULATOR !!! ОШИБКА в потоке {parameter_id}: '{type(error).__name__}' - '{error}'")
             if stop_event.is_set():
                  break
             print(f"SIMULATOR  [Поток {parameter_id}]: Пауза 5 сек после ошибки.")
@@ -139,9 +147,12 @@ async def main_async():
         print(f"SIMULATOR  Найдено {len(parameters_to_simulate)} параметров.")
 
         # 2. Подключается к RabbitMQ
-        print(f"SIMULATOR: Подключаюсь к RabbitMQ: {settings.RABBITMQ_URL}...")
+        print(f"SIMULATOR  Подключаюсь к RabbitMQ: '{settings.RABBITMQ_URL}'...")
         await broker.start()
-        print("SIMULATOR: Успешно подключено к RabbitMQ через FastStream.")
+        print(f"SIMULATOR  Объявляю fanout exchange '{simulator_live_data_exchange.name}'...")
+        await broker.declare_exchange(simulator_live_data_exchange)
+        print(f"SIMULATOR  Fanout exchange '{simulator_live_data_exchange.name}' успешно объявлен.")
+        print("SIMULATOR  Успешно подключено к RabbitMQ через FastStream.")
 
         # 3. Запускает задачи генерации
         print(f"SIMULATOR  Запускаю {len(parameters_to_simulate)} потоков генерации данных...")
@@ -156,13 +167,13 @@ async def main_async():
         while not stop_event.is_set():
             await asyncio.sleep(1)
 
-        # Если остановка произошла (Ctrl+C), отменяет задачи
+        # 5. Если остановка произошла (Ctrl+C), отменяет задачи
         print("SIMULATOR  Отменяю задачи генерации...")
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
     except Exception as e:
-        print(f"SIMULATOR  !!! Критическая ОШИБКА в main_async: {type(e).__name__} - {e}")
+        print(f"SIMULATOR  !!! Критическая ОШИБКА в main_async: '{type(e).__name__}' - '{e}'")
     finally:
         print("SIMULATOR  Основная задача: завершение.")
         if broker:
@@ -170,7 +181,7 @@ async def main_async():
             try:
                 await broker.close()
             except Exception as e_close:
-                print(f"SIMULATOR  !!! ОШИБКА при закрытии соединения RabbitMQ: {e_close}")
+                print(f"SIMULATOR  !!! ОШИБКА при закрытии соединения RabbitMQ: '{e_close}'")
         print("SIMULATOR  Симуляция завершена.")
 
 
