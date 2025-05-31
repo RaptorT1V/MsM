@@ -1,6 +1,8 @@
-from pydantic import BaseModel
 from typing import Optional
+
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
+
 from app.models.setting import UserSetting
 from app.repositories.base import CRUDBase
 from app.schemas.setting import SettingUpdate

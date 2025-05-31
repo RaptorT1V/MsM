@@ -1,6 +1,8 @@
 from typing import Optional, List, cast
+
 from sqlalchemy import select, update as sqlalchemy_update
 from sqlalchemy.orm import Session
+
 from app.models.rule import Alert, MonitoringRule
 from app.repositories.base import CRUDBase
 from app.schemas.rule import AlertCreateInternal, AlertUpdate, RuleCreate, RuleUpdate

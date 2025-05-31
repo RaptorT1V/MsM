@@ -1,9 +1,11 @@
-from pydantic import BaseModel
 from typing import cast, List, Optional
+
+from pydantic import BaseModel
 from sqlalchemy import distinct, select
 from sqlalchemy.orm import Session
-from app.models.equipment import Shop, AggregateType, ActuatorType, Line, Aggregate, Actuator
+
 from app.models.enums import LineTypesEnum
+from app.models.equipment import AggregateType, ActuatorType, Shop, Line, Aggregate, Actuator
 from app.repositories.base import CRUDBase
 
 

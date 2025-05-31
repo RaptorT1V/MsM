@@ -1,9 +1,11 @@
 import datetime
 from typing import Any, cast, Dict, List, Optional, Union
+
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload, Session
-from app.models.equipment import Shop, AggregateType, ActuatorType, Line, Aggregate, Actuator  # noqa F401
+
+from app.models.equipment import AggregateType, ActuatorType, Shop, Line, Aggregate, Actuator  # noqa F401
 from app.models.parameter import ParameterType, Parameter, ParameterData
 from app.repositories.base import CRUDBase, ModelType, UpdateSchemaType  # noqa F401
 from app.schemas.parameter import ParameterDataCreate
