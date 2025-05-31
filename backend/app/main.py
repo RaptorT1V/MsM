@@ -1,14 +1,16 @@
 import json
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from faststream.rabbit import RabbitBroker, RabbitQueue, RabbitExchange, ExchangeType
+from faststream.rabbit import ExchangeType, RabbitBroker, RabbitExchange, RabbitQueue
+
 from app.api.routers import alerts, auth, equipment, parameters, rules, settings, users, websockets
 from app.core.config import settings as app_settings
 from app.services.websocket_service import connection_manager
 
 
-# --- Инициализация FastStream для консьюмера Websocket-данных внутри FastAPI ---
+# --- Инициализация FastStream для потребителя Websocket-данных внутри FastAPI ---
 websocket_consumer_broker = RabbitBroker(app_settings.RABBITMQ_URL)
 
 live_data_exchange_fastapi = RabbitExchange(
@@ -27,8 +29,8 @@ websocket_consumer_queue = RabbitQueue(
 
 @websocket_consumer_broker.subscriber(queue=websocket_consumer_queue, exchange=live_data_exchange_fastapi)
 async def _consume_live_data_for_ws(data: dict):
-    """ Этот подписчик работает внутри FastAPI приложения """
-    print(f"FASTAPI_WS_CONSUMER  Получил live data через RabbitMQ: {data}")
+    """ Получает данные о значениях параметров из RabbitMQ и рассылает их соответствующим WebSocket-подписчикам """
+    print(f"[FastAPI]  Получил live data через RabbitMQ: {data}")
     parameter_id_val = data.get("parameter_id")
     if parameter_id_val is not None:
         try:
@@ -36,15 +38,17 @@ async def _consume_live_data_for_ws(data: dict):
             message_json = json.dumps(data)
             await connection_manager.broadcast_to_parameter_subscribers(parameter_id_int, message_json)
         except ValueError:
-            print(f"FASTAPI_WS_CONSUMER: Invalid parameter_id format in message: {parameter_id_val}")
+            print(f"[FastAPI]  !!! ОШИБКА: Неверный формат parameter_id в сообщении: {parameter_id_val}")
         except Exception as e_broadcast:
-             print(f"FASTAPI_WS_CONSUMER: Error during broadcast for parameter_id {parameter_id_val}: {e_broadcast}")
+             print(f"[FastAPI]  !!! ОШИБКА ОШИБКА во время рассылки для parameter_id {parameter_id_val}: {e_broadcast}")
     else:
-        print(f"FASTAPI_WS_CONSUMER: Message received without parameter_id: {data}")
+        print(f"[FastAPI]  Получено сообщение без parameter_id: {data}")
 
 
 @asynccontextmanager
 async def lifespan(app_instance: FastAPI):
+    """ Управляет жизненным циклом WebSocket consumer-брокера в FastAPI.
+    При запуске приложения инициализирует и запускает брокер, при остановке - корректно его закрывает. """
     print("[FastAPI]  Lifespan запускается...")
     print("[FastAPI]  Попытка создать WebSocket consumer broker...")
     try:
