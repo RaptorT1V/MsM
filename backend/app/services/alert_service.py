@@ -31,7 +31,7 @@ def process_new_parameter_data(parameter_data_id: int) -> None:
     """ Обрабатывает новую запись данных параметра: проверяет правила и создает тревоги.
     Эта функция вызывается фоновым воркером (alert_worker.py). """
     db: Session | None = None
-    print(f"[AlertService] Обработка ParameterData ID: {parameter_data_id}")
+    print(f"[Alert_Service] Обработка ParameterData с ID = {parameter_data_id}")
     try:
         # 1. Получает запись ParameterData с предзагруженными деталями
         db = SessionLocal()
@@ -40,10 +40,10 @@ def process_new_parameter_data(parameter_data_id: int) -> None:
         )
 
         if not data_entry:
-            print(f"[AlertService] Ошибка: Запись ParameterData с id={parameter_data_id} не найдена.")
+            print(f"[Alert_Service] Ошибка: Запись ParameterData с ID = {parameter_data_id} не найдена.")
             return
         if not data_entry.parameter:
-            print(f"[AlertService] Ошибка: Связанный Parameter для ParameterData id={parameter_data_id} не найден.")
+            print(f"[Alert_Service] Ошибка: Связанный Parameter для ParameterData с ID = {parameter_data_id} не найден.")
             return
 
         # 2. Получает активные правила для этого параметра
@@ -52,7 +52,7 @@ def process_new_parameter_data(parameter_data_id: int) -> None:
         )
 
         if not active_rules:
-            print(f"[AlertService] Нет активных правил для parameter_id: {data_entry.parameter_id}")
+            print(f"[Alert_Service] Нет активных правил для parameter_id: {data_entry.parameter_id}")
             return
 
         value_to_check = data_entry.parameter_value
@@ -70,7 +70,7 @@ def process_new_parameter_data(parameter_data_id: int) -> None:
                 rule_violated = True
 
             if rule_violated:
-                print(f"[AlertService] Правило ID {rule.rule_id} НАРУШЕНО для ParameterData ID {parameter_data_id}")
+                print(f"[Alert_Service] Правило с ID = {rule.rule_id} НАРУШЕНО для ParameterData с ID = {parameter_data_id}")
                 # Формирование сообщения тревоги
                 try:
                     param = data_entry.parameter
@@ -88,15 +88,15 @@ def process_new_parameter_data(parameter_data_id: int) -> None:
                     agg_type_str = aggregate_type.aggregate_type_name if aggregate_type else "N/A"
                     line_type_str = line.line_type.value if line else "N/A"
                     shop_name_str = shop.shop_name if shop else "N/A"
-                    rule_name_str = f"'{rule.rule_name}'" if rule.rule_name else f"(ID: {rule.rule_id})"
+                    # rule_name_str = f"'{rule.rule_name}'" if rule.rule_name else f"(ID: {rule.rule_id})"  # Решил, что не стоит использовать rule_name
 
-                    alert_message = (   f"Тревога! [{shop_name_str} / {line_type_str} / {agg_type_str} / {act_type_str}]: "
+                    alert_message = (   f"Тревога! [{shop_name_str} / {line_type_str}  линия / {agg_type_str} / {act_type_str}]: "
                                         f"Параметр '{param_name_str}' = {value_to_check:.2f} {unit_str} "
                                         f"нарушил правило ({operator} {threshold} {unit_str})"
-                    )[:150]
+                    )[:250]
                 except AttributeError as e:
-                    print(f"[AlertService] Ошибка при формировании сообщения: {e}")
-                    alert_message = f"Тревога по правилу ID {rule.rule_id}: значение {value_to_check:.2f} {operator} {threshold}"
+                    print(f"[Alert_Service] Ошибка при формировании сообщения: {e}")
+                    alert_message = f"Тревога по правилу с ID = {rule.rule_id}: значение {value_to_check:.2f} {operator} {threshold}"
 
                 # Подготовка данных для создания Alert
                 alert_create_data = AlertCreateInternal(
@@ -109,9 +109,9 @@ def process_new_parameter_data(parameter_data_id: int) -> None:
                 try:
                     created_alert = alert_repository.create(db=db, obj_in=alert_create_data)
                     alerts_created_this_run.append({"alert_obj": created_alert, "user_id": rule.user_id})
-                    print(f"[AlertService] Создана тревога ID {created_alert.alert_id} для пользователя {rule.user_id}")
+                    print(f"[Alert_Service] Создана тревога с ID = {created_alert.alert_id} для пользователя с ID = {rule.user_id}")
                 except Exception as e_create:
-                    print(f"[AlertService] Ошибка создания записи Alert для rule_id {rule.rule_id}: {e_create}")
+                    print(f"[Alert_Service] Ошибка создания записи Alert для rule_id = {rule.rule_id}: {e_create}")
                     db.rollback()
 
         # 4. Отправка уведомлений (ПОСЛЕ всех проверок и создания алертов)
@@ -119,7 +119,7 @@ def process_new_parameter_data(parameter_data_id: int) -> None:
         for alert_info in alerts_created_this_run:
             _send_notification(user_id=alert_info["user_id"], message=alert_info["alert_obj"].alert_message)
 
-        print(f"[AlertService] Обработка ParameterData ID: {parameter_data_id} завершена.")
+        print(f"[Alert_Service] Обработка ParameterData с ID = {parameter_data_id} завершена.")
     finally:
         if db:
             db.close()
