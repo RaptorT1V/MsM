@@ -1,10 +1,12 @@
-from typing import List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
-from sqlalchemy.orm import Session
 import json
+from typing import Any, Dict, List
+
+from fastapi import APIRouter, Depends, File, HTTPException, status, UploadFile
+from sqlalchemy.orm import Session
+
 from app.api import deps
-from app.models.user import User as UserModel
 from app.models.rule import MonitoringRule as MonitoringRuleModel
+from app.models.user import User as UserModel
 from app.schemas.rule import RuleCreate, RuleRead, RuleUpdate
 from app.services import rule_service
 

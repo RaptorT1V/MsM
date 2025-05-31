@@ -1,10 +1,12 @@
 from typing import Dict, List
+
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
+
 from app.api import deps
 from app.models.user import User as UserModel
-from app.services import user_service
 from app.schemas.user import UserCreate, UserRead, UserUpdateAdmin, UserUpdatePassword
+from app.services import user_service
 
 
 router = APIRouter(prefix="/users", tags=["Users"])

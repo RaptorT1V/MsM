@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+
 from app.api import deps
-from app.models.user import User as UserModel
 from app.models.setting import UserSetting as UserSettingModel
-from app.services import setting_service
+from app.models.user import User as UserModel
 from app.schemas.setting import SettingRead, SettingUpdate
+from app.services import setting_service
 
 
 router = APIRouter(prefix="/settings", tags=["User Settings"])

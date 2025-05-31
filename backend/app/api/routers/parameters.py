@@ -1,10 +1,12 @@
 import datetime
 from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+
 from app.api import deps
-from app.models.user import User as UserModel
 from app.models.parameter import ParameterType, Parameter, ParameterData
+from app.models.user import User as UserModel
 from app.schemas.parameter import ParameterTypeRead, ParameterRead, ParameterDataRead
 from app.services import parameter_service
 

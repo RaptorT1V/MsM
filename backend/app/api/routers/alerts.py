@@ -1,11 +1,14 @@
 from typing import List, Dict
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+
 from app.api import deps
-from app.models.user import User as UserModel
 from app.models.rule import Alert as AlertModel
+from app.models.user import User as UserModel
 from app.schemas.rule import AlertRead
 from app.services import alert_service
+
 
 router = APIRouter(prefix="/alerts", tags=["Alerts"])
 

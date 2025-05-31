@@ -1,10 +1,12 @@
 from typing import List
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+
 from app.api import deps
+from app.models.equipment import AggregateType, ActuatorType, Shop, Line, Aggregate, Actuator
 from app.models.user import User as UserModel
-from app.models.equipment import Shop, Line, Aggregate, Actuator, AggregateType, ActuatorType
-from app.schemas.equipment import ShopRead, LineRead, AggregateRead, ActuatorRead, AggregateTypeRead, ActuatorTypeRead
+from app.schemas.equipment import AggregateTypeRead, ActuatorTypeRead, ShopRead, LineRead, AggregateRead, ActuatorRead
 from app.services import equipment_service
 
 
