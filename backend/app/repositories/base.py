@@ -1,9 +1,11 @@
-from pydantic import BaseModel
 from typing import Any, cast, Dict, Generic, List, Optional, Type, TypeVar, Union
+
 from fastapi.encoders import jsonable_encoder
+from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement
+
 from app.db.base_class import Base
 
 
@@ -17,6 +19,7 @@ UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
     def __init__(self, model: Type[ModelType]):
+        """ Инициализирует CRUDBase с указанной ORM-моделью SQLAlchemy """
         self.model = model
 
     def get_multi(self, db: Session, *, skip: int = 0, limit: int = 100,
