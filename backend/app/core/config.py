@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # --- Настройки RabbitMQ ---
     RABBITMQ_USER: str = "guest"
     RABBITMQ_PASSWORD: str = "guest"
-    RABBITMQ_HOST: str = "localhost"
+    RABBITMQ_HOST: str = "127.0.0.1"
     RABBITMQ_PORT: int = 5672
     RABBITMQ_VIRTUAL_HOST: str = "/"
     RABBITMQ_QUEUE_NAME: str = "parameter_data_queue"
@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     SQLALCHEMY_DATABASE_URL: Optional[PostgresDsn] = None
 
     # --- Настройки CORS ---
-    BACKEND_CORS_ORIGINS: List[Union[AnyHttpUrl, str]] = ["http://localhost", "http://localhost:8080", "http://localhost:5000", "http://localhost:3000"]
+    BACKEND_CORS_ORIGINS: List[Union[AnyHttpUrl, str]] = ["http://localhost", "http://localhost:8080", "http://localhost:8000", "http://localhost:5000", "http://localhost:3000"]
 
     # --- Роли администраторов ---
     ADMIN_JOB_TITLES: List[str] = ["Директор"]
@@ -61,6 +61,6 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # --- Проверка ---
-if not settings.SECRET_KEY or settings.SECRET_KEY == "default_secret_needs_changing":
+if not settings.SECRET_KEY or settings.SECRET_KEY == "default":
     print("!!! ВНИМАНИЕ: SECRET_KEY не установлен или используется небезопасный дефолт!")
     print("!!! Пожалуйста, сгенерируйте ключ и установите его в .env файле !!!")
