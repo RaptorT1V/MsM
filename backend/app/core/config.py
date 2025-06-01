@@ -36,7 +36,11 @@ class Settings(BaseSettings):
     SQLALCHEMY_DATABASE_URL: Optional[PostgresDsn] = None
 
     # --- Настройки CORS ---
-    BACKEND_CORS_ORIGINS: List[Union[AnyHttpUrl, str]] = ["http://localhost", "http://localhost:8080", "http://localhost:8000", "http://localhost:5000", "http://localhost:3000"]
+    BACKEND_CORS_ORIGINS: List[Union[AnyHttpUrl, str]] = [
+        "http://localhost", "http://localhost:8080",
+        "http://localhost:8000", "http://localhost:5000",
+        "http://localhost:3000"
+    ]
 
     # --- Роли администраторов ---
     ADMIN_JOB_TITLES: List[str] = ["Директор"]
@@ -53,7 +57,8 @@ class Settings(BaseSettings):
             host=self.DB_HOST,
             port=self.DB_PORT
         )
-        self.RABBITMQ_URL = f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}{self.RABBITMQ_VIRTUAL_HOST}"
+        self.RABBITMQ_URL = (f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:"
+                             f"{self.RABBITMQ_PORT}{self.RABBITMQ_VIRTUAL_HOST}")
         return self
 
 
