@@ -119,7 +119,8 @@ class LineRepository(CRUDBase[Line, BaseModel, BaseModel]):
 
     def get_by_shop_and_type(self, db: Session, *, shop_id: int, line_type: LineTypesEnum) -> Optional[Line]:
         """ Получает конкретную линию в цехе по её типу """
-        statement = select(self.model).where(self.model.shop_id == shop_id, self.model.line_type == line_type)
+        statement = (select(self.model)
+                     .where(self.model.shop_id == shop_id, self.model.line_type == line_type))
         result = db.execute(statement)
         return result.scalar_one_or_none()
 
@@ -131,7 +132,8 @@ class LineRepository(CRUDBase[Line, BaseModel, BaseModel]):
         result = db.execute(statement)
         return cast(List[int], result.scalars().all())
 
-    def get_by_shop_and_ids(self, db: Session, *, shop_id: int, allowed_line_ids: List[int], skip: int = 0, limit: int = 100) -> List[Line]:
+    def get_by_shop_and_ids(self, db: Session, *, shop_id: int, allowed_line_ids: List[int],
+                            skip: int = 0, limit: int = 100) -> List[Line]:
         """ Получает линии для конкретного цеха, но только те, что есть в списке allowed_line_ids.
         Используется для пользователей с доступом ScopeTypeEnum.LINE. """
         if not allowed_line_ids:

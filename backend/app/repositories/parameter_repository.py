@@ -2,7 +2,7 @@ import datetime
 from typing import Any, cast, Dict, List, Optional, Union
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, select
 from sqlalchemy.orm import joinedload, Session
 
 from app.models.equipment import AggregateType, ActuatorType, Shop, Line, Aggregate, Actuator  # noqa F401
@@ -53,7 +53,9 @@ class ParameterRepository(CRUDBase[Parameter, BaseModel, BaseModel]):
 
     def get_by_actuator_and_type(self, db: Session, *, actuator_id: int, parameter_type_id: int) -> Optional[Parameter]:
         """ Получает конкретный параметр по актуатору и типу """
-        statement = select(self.model).where(self.model.actuator_id == actuator_id, self.model.parameter_type_id == parameter_type_id)
+        statement = (select(self.model)
+                     .where(self.model.actuator_id == actuator_id,
+                            self.model.parameter_type_id == parameter_type_id))
         result = db.execute(statement)
         return result.scalar_one_or_none()
 
@@ -81,21 +83,20 @@ class ParameterDataRepository(CRUDBase[ParameterData, ParameterDataCreate, BaseM
 
     def get_latest(self, db: Session, *, parameter_id: int) -> Optional[ParameterData]:
         """ Получает самую последнюю запись для параметра """
-        statement = (select(self.model).where(self.model.parameter_id == parameter_id).order_by(self.model.data_timestamp.desc()).limit(1))
+        statement = (select(self.model).where(self.model.parameter_id == parameter_id)
+                     .order_by(self.model.data_timestamp.desc()).limit(1))
         result = db.execute(statement)
         return result.scalar_one_or_none()
 
-    def get_range(self, db: Session, *, parameter_id: int, start_time: datetime.datetime, end_time: datetime.datetime, limit: Optional[int] = None) -> List[ParameterData]:
+    def get_range(self, db: Session, *, parameter_id: int,
+                  start_time: datetime.datetime, end_time: datetime.datetime,
+                  limit: Optional[int] = None) -> List[ParameterData]:
         """ Получает данные для параметра в заданном временном диапазоне """
-        statement = (
-            select(self.model)
-            .where(
-                self.model.parameter_id == parameter_id,
-                self.model.data_timestamp >= start_time,
-                self.model.data_timestamp <= end_time
-            )
-            .order_by(self.model.data_timestamp.asc())
-        )
+        statement = (select(self.model)
+                     .where(self.model.parameter_id == parameter_id,
+                            self.model.data_timestamp >= start_time,
+                            self.model.data_timestamp <= end_time)
+                     .order_by(self.model.data_timestamp.asc()))
         if limit:
             statement = statement.limit(limit)
         result = db.execute(statement)
@@ -117,11 +118,14 @@ class ParameterDataRepository(CRUDBase[ParameterData, ParameterDataCreate, BaseM
         result = db.execute(statement)
         return result.scalar_one_or_none()
 
-    def update(self, db: Session, *, db_obj: ParameterData, obj_in: Union[BaseModel, Dict[str, Any]]) -> ParameterData:
-        raise NotImplementedError("Updating ParameterData is not allowed.")
-
-    def get_multi(self, db: Session, *, skip: int = 0, limit: int = 100) -> List[ParameterData]:
+    def get_multi(self, db: Session, *, skip: int = 0, limit: int = 100,
+                  order_by: Optional[List[ColumnElement]] = None,
+                  options: Optional[List] = None) -> List[ParameterData]:
         raise NotImplementedError("Use get_range for fetching multiple ParameterData entries.")
+
+    def update(self, db: Session, *, db_obj: ParameterData,
+               obj_in: Union[BaseModel, Dict[str, Any]]) -> ParameterData:
+        raise NotImplementedError("Updating ParameterData is not allowed.")
 
 
 # --- Экземпляры репозиториев ---

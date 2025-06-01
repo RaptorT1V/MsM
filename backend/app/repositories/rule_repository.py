@@ -24,19 +24,23 @@ class MonitoringRuleRepository(CRUDBase[MonitoringRule, RuleCreate, RuleUpdate])
 
     def get_by_user(self, db: Session, *, user_id: int, skip: int = 0, limit: int = 100) -> List[MonitoringRule]:
         """ Получает список правил для конкретного пользователя с пагинацией """
-        statement = (select(self.model).where(self.model.user_id == user_id).order_by(self.model.rule_id).offset(skip).limit(limit))
+        statement = (select(self.model).where(self.model.user_id == user_id)
+                     .order_by(self.model.rule_id).offset(skip).limit(limit))
         result = db.execute(statement)
         return cast(List[MonitoringRule], result.scalars().all())
 
-    def get_by_parameter(self, db: Session, *, parameter_id: int, skip: int = 0, limit: int = 100) -> List[MonitoringRule]:
+    def get_by_parameter(self, db: Session, *, parameter_id: int,
+                         skip: int = 0, limit: int = 100) -> List[MonitoringRule]:
         """ Получает список правил для конкретного параметра с пагинацией """
-        statement = (select(self.model).where(self.model.parameter_id == parameter_id).order_by(self.model.rule_id).offset(skip).limit(limit))
+        statement = (select(self.model).where(self.model.parameter_id == parameter_id)
+                     .order_by(self.model.rule_id).offset(skip).limit(limit))
         result = db.execute(statement)
         return cast(List[MonitoringRule], result.scalars().all())
 
     def get_active_by_parameter(self, db: Session, *, parameter_id: int) -> List[MonitoringRule]:
         """ Получает ВСЕ АКТИВНЫЕ правила для конкретного параметра (для проверки тревог) """
-        statement = select(self.model).where(self.model.parameter_id == parameter_id, self.model.is_active == True)
+        statement = (select(self.model)
+                     .where(self.model.parameter_id == parameter_id, self.model.is_active == True))
         result = db.execute(statement)
         return cast(List[MonitoringRule], result.scalars().all())
 
@@ -92,7 +96,8 @@ class AlertRepository(CRUDBase[Alert, AlertCreateInternal, AlertUpdate]):
         """ Получает тревогу по ID """
         return db.get(self.model, alert_id)
 
-    def get_by_user(self, db: Session, *, user_id: int, skip: int = 0, limit: int = 100, only_unread: bool = False) -> List[Alert]:
+    def get_by_user(self, db: Session, *, user_id: int,
+                    skip: int = 0, limit: int = 100, only_unread: bool = False) -> List[Alert]:
         """ Получает список тревог для конкретного пользователя (через правило) с пагинацией """
         statement = (select(self.model).join(MonitoringRule).where(MonitoringRule.user_id == user_id))
 
