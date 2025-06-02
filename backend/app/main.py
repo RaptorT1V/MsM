@@ -40,13 +40,13 @@ async def _consume_live_data_for_ws(data: dict):
         except ValueError:
             print(f"[FastAPI]  !!! ОШИБКА: Неверный формат parameter_id в сообщении: {parameter_id_val}")
         except Exception as e_broadcast:
-             print(f"[FastAPI]  !!! ОШИБКА ОШИБКА во время рассылки для parameter_id {parameter_id_val}: {e_broadcast}")
+             print(f"[FastAPI]  !!! ОШИБКА во время рассылки для parameter_id {parameter_id_val}: {e_broadcast}")
     else:
         print(f"[FastAPI]  Получено сообщение без parameter_id: {data}")
 
 
 @asynccontextmanager
-async def lifespan(app_instance: FastAPI):
+async def lifespan(_app_instance: FastAPI):
     """ Управляет жизненным циклом WebSocket consumer-брокера в FastAPI.
     При запуске приложения инициализирует и запускает брокер, при остановке - корректно его закрывает. """
     print("[FastAPI]  Lifespan запускается...")
@@ -102,7 +102,7 @@ app = FastAPI(
 # --- Настройка CORS (Cross-Origin Resource Sharing) ---
 if app_settings.BACKEND_CORS_ORIGINS:
     app.add_middleware(
-        CORSMiddleware,  # noqa
+        CORSMiddleware,  # type: ignore
         allow_origins=[str(origin) for origin in app_settings.BACKEND_CORS_ORIGINS],
         allow_credentials=True,
         allow_methods=["*"],
@@ -110,7 +110,7 @@ if app_settings.BACKEND_CORS_ORIGINS:
     )
 else:
     app.add_middleware(
-        CORSMiddleware,  # noqa
+        CORSMiddleware,  # type: ignore
         allow_origins=["*"],  # TODO: Для production это небезопасно!
         allow_credentials=True,
         allow_methods=["*"],
