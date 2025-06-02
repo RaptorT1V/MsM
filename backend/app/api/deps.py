@@ -66,7 +66,7 @@ async def get_current_user_ws(websocket: WebSocket, db: Session = Depends(get_db
     credentials_exception_ws = status.WS_1008_POLICY_VIOLATION
 
     if token is None:
-        print("WS Auth Error: Token not provided in query.")
+        print("[WS_AUTH]  !!! ОШИБКА: Токен не предоставлен в query-параметрах.")
         await websocket.close(code=credentials_exception_ws, reason="Token not provided")
         return None
 
@@ -76,29 +76,29 @@ async def get_current_user_ws(websocket: WebSocket, db: Session = Depends(get_db
         user_role_from_payload: Optional[str] = payload.get("role")
 
         if user_id_from_sub is None:
-            print("WS Auth Error: Token payload missing 'sub' (user_id).")
+            print("[WS_AUTH]  !!! ОШИБКА: В payload токена отсутствует 'sub' (user_id).")
             await websocket.close(code=credentials_exception_ws, reason="Invalid token payload (sub missing)")
             return None
 
         token_data = TokenData(user_id=int(user_id_from_sub), role=user_role_from_payload)
     except JWTError:
-        print("WS Auth Error: JWTError - Could not validate credentials.")
+        print("[WS_AUTH]  !!! ОШИБКА: JWTError - Не удалось проверить учётные данные.")
         await websocket.close(code=credentials_exception_ws, reason="Invalid token (JWTError)")
         return None
     except ValidationError:
-        print("WS Auth Error: ValidationError for TokenData.")
+        print("[WS_AUTH]  !!! ОШИБКА: ValidationError для TokenData.")
         await websocket.close(code=credentials_exception_ws, reason="Invalid token data (ValidationError)")
         return None
     except ValueError:
-        print("WS Auth Error: ValueError for user_id in token.")
+        print("[WS_AUTH]  !!! ОШИБКА: ValueError для user_id в токене.")
         await websocket.close(code=credentials_exception_ws, reason="Invalid user_id format in token")
         return None
 
     user = user_service.get_user(db=db, user_id=token_data.user_id)
     if user is None:
-        print(f"WS Auth Error: User with id {token_data.user_id} not found.")
+        print(f"[WS_AUTH]  !!! ОШИБКА: Пользователь с id = {token_data.user_id} не найден.")
         await websocket.close(code=credentials_exception_ws, reason="User not found")
         return None
 
-    print(f"WS Auth Success: User {user.user_id} authenticated for WebSocket.")
+    print(f"[WS_AUTH]  Пользователь с id = {user.user_id} УСПЕШНО аутентифицирован для WebSocket.")
     return user
